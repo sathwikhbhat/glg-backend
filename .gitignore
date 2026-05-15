@@ -36,4 +36,8 @@ build/
 .env
 
 ### .mmdb ###
-GeoLite2-City.mmdb
+*.mmdb
+
+### json files ###
+.mcp.json
+settings.local.json
