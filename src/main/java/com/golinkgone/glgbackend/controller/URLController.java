@@ -37,7 +37,7 @@ public class URLController {
         this.userService = userService;
     }
 
-    @GetMapping("/actuator/health")
+    @GetMapping("/health")
     public ResponseEntity<String> healthCheck() {
         return ResponseEntity.ok("GoLinkGone OK");
     }
