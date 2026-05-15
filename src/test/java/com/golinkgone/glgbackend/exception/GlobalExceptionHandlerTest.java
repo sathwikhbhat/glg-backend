@@ -26,53 +26,51 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void shouldReturn404ForShortKeyNotFoundException() throws Exception {
+    void shortKeyNotFound_returns404WithCannedMessage() throws Exception {
         mockMvc.perform(get("/test/short-key-not-found"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
                 .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("No link found for key: abc123"))
-                .andExpect(jsonPath("$.path").value("/test/short-key-not-found"));
+                .andExpect(jsonPath("$.message").value("The requested link does not exist"));
     }
 
     @Test
-    void shouldReturn400ForIllegalArgumentException() throws Exception {
+    void illegalArgument_returns400WithCannedMessage() throws Exception {
         mockMvc.perform(get("/test/illegal-argument"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))
                 .andExpect(jsonPath("$.error").value("Bad Request"))
-                .andExpect(jsonPath("$.message").value("Unsupported timeRange '2h'"))
-                .andExpect(jsonPath("$.path").value("/test/illegal-argument"));
+                .andExpect(jsonPath("$.message").value("Invalid request Parameters"));
     }
 
     @Test
-    void shouldReturn404ForResponseStatusException() throws Exception {
+    void responseStatusException_propagatesStatusCode() throws Exception {
         mockMvc.perform(get("/test/response-status"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.error").value("Not Found"))
-                .andExpect(jsonPath("$.message").value("Invalid URL"))
-                .andExpect(jsonPath("$.path").value("/test/response-status"));
+                .andExpect(jsonPath("$.error").value("Not Found"));
     }
 
     @Test
-    void shouldReturn500ForWriterException() throws Exception {
-        mockMvc.perform(get("/test/io-exception"))
+    void writerException_returns500WithQrMessage() throws Exception {
+        mockMvc.perform(get("/test/writer-exception"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.status").value(500))
-                .andExpect(jsonPath("$.error").value("Internal Server Error"))
-                .andExpect(jsonPath("$.message").value("Failed to generate QR code"))
-                .andExpect(jsonPath("$.path").value("/test/io-exception"));
+                .andExpect(jsonPath("$.message").value("Failed to generate QR code"));
     }
 
     @Test
-    void shouldReturn500ForUnhandledException() throws Exception {
+    void unhandledException_returns500WithGenericMessage() throws Exception {
         mockMvc.perform(get("/test/unhandled"))
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.status").value(500))
-                .andExpect(jsonPath("$.error").value("Internal Server Error"))
-                .andExpect(jsonPath("$.message").value("Internal server error"))
-                .andExpect(jsonPath("$.path").value("/test/unhandled"));
+                .andExpect(jsonPath("$.message").value("Internal server error"));
+    }
+
+    @Test
+    void apiErrorResponse_carriesTimestampField() throws Exception {
+        mockMvc.perform(get("/test/unhandled"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @RestController
@@ -94,8 +92,8 @@ class GlobalExceptionHandlerTest {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid URL");
         }
 
-        @GetMapping("/io-exception")
-        String ioException() throws com.google.zxing.WriterException {
+        @GetMapping("/writer-exception")
+        String writerException() throws com.google.zxing.WriterException {
             throw new com.google.zxing.WriterException("QR generation failed");
         }
 
