@@ -1,0 +1,34 @@
+app:
+  base-url: http://localhost:8080
+  allowed-origins: http://localhost:5173
+  rate-limit:
+    create:
+      capacity: 1000
+      refill-per-minute: 1000
+
+  spring:
+    datasource:
+      url: jdbc:h2:mem:test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+    jpa:
+      hibernate:
+        ddl-auto: create-drop
+      properties:
+        hibernate:
+          dialect: org.hibernate.dialect.H2Dialect
+    security:
+      oauth2:
+        resourceserver:
+          jwt:
+            issuer-uri: https://issuer.test/
+            jwk-set-uri: https://issuer.test/jwks.json
+
+  supabase:
+    project-url: http://localhost:9999
+    service-role-key: stub
+
+  maxmind:
+    db-path: classpath:GeoLite2-City.mmdb
+    license-key: ""
