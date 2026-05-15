@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.UUID;
 
 @Service
 @Slf4j
@@ -46,7 +49,9 @@ public class URLShortenerService {
         this.cacheManager = cacheManager;
     }
 
-    public CreateResponse createShortLink(String originalUrl, String userId) {
+    public CreateResponse createShortLink(String originalUrl, UUID userId) {
+        validateUrl(originalUrl);
+
         String shortKey = null;
         boolean saved = false;
 
@@ -70,7 +75,7 @@ public class URLShortenerService {
             }
         }
         String shortUrl = appProperties.getBaseUrl() + "/" + shortKey;
-        byte[] qrCode = new byte[0];
+        byte[] qrCode = null;
         try {
             qrCode = qrService.generateQrImage(shortUrl, 200, 200);
         } catch (IOException | WriterException e) {
@@ -80,7 +85,26 @@ public class URLShortenerService {
         return new CreateResponse(shortUrl, qrCode);
     }
 
-    public String redirectUrl(String shortKey, String ip, String userAgent) {
+    private void validateUrl(String originalUrl) {
+        URI uri;
+        try {
+            uri = new URI(originalUrl);
+        } catch (URISyntaxException ex) {
+            throw new IllegalArgumentException("Malformed URL");
+        }
+
+        String scheme = uri.getScheme();
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+            throw new IllegalArgumentException("URL must use http or https");
+        }
+
+        String host = uri.getHost();
+        if (host == null || host.isBlank() || !host.contains(".")) {
+            throw new IllegalArgumentException("URL must contain a valid host");
+        }
+    }
+
+    public String redirectUrl(String shortKey, String ip, String userAgent, String secChUaMobile) {
 
         if (!StringUtils.hasText(shortKey)) {
             throw new IllegalArgumentException("shortKey must not be blank");
@@ -92,19 +116,19 @@ public class URLShortenerService {
 
         ResolvedLink resolved = urlLookupService.resolveUrl(shortKey);
         if(resolved.hasOwner()){
-            analyticsService.recordClick(shortKey, ip, userAgent);
+            analyticsService.recordClick(shortKey, ip, userAgent, secChUaMobile);
         }
 
         return resolved.originalUrl();
     }
 
-    public Page<LinkItemResponse> getUserLinks(String userId, int page, int size){
+    public Page<LinkItemResponse> getUserLinks(UUID userId, int page, int size){
         Pageable pageable = createPage(page, size);
         Page<LinkItemResponse> rawLinks = repository.findUserLinks(userId, pageable);
 
         return rawLinks.map(link -> new LinkItemResponse(
                 link.shortKey(),
-                appProperties.getBaseUrl() + link.shortKey(),
+                appProperties.getBaseUrl() + "/" + link.shortKey(),
                 link.originalUrl(),
                 link.createdAt()
         ));
@@ -114,8 +138,7 @@ public class URLShortenerService {
         return (PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
-    @Transactional
-    public void deleteLink(String shortKey, String userId) {
+    public void deleteLink(String shortKey, UUID userId) {
         int deletedRows = repository.deleteByShortKeyAndUserId(shortKey, userId);
 
         if (deletedRows > 0) {
@@ -136,7 +159,8 @@ public class URLShortenerService {
             if (ownershipCache != null) {
                 ownershipCache.evict(shortKey + "_" + userId);
             }
-        } else {
+        }
+        else {
             throw new ShortKeyNotFoundException("Link not found or access denied");
         }
     }

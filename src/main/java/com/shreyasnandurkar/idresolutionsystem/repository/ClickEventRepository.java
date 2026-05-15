@@ -6,11 +6,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.UUID;
 
-public interface ClickEventRepository extends JpaRepository<ClickEvent, UUID> {
+public interface ClickEventRepository extends JpaRepository<ClickEvent, Long> {
 
     @Query(value = """
             SELECT DATE_TRUNC(CAST(:granularity AS text), c.clicked_at) AS bucket,
@@ -23,8 +22,8 @@ public interface ClickEventRepository extends JpaRepository<ClickEvent, UUID> {
             ORDER BY bucket""", nativeQuery = true)
     List<ClickStats> getTotals(
             @Param("shortKey") String shortKey,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to,
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to,
             @Param("granularity") String granularity
     );
 
@@ -42,8 +41,8 @@ public interface ClickEventRepository extends JpaRepository<ClickEvent, UUID> {
             """, nativeQuery = true)
     List<CountryStats> getTopCountries(
             @Param("shortKey") String shortKey,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
     );
 
     @Query(value = """
@@ -59,19 +58,21 @@ public interface ClickEventRepository extends JpaRepository<ClickEvent, UUID> {
               AND c.country IS NOT NULL
             GROUP BY c.city, c.country
             ORDER BY total DESC
+            LIMIT 15
             """, nativeQuery = true)
     List<CityStats> getTopCities(
             @Param("shortKey") String shortKey,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to
+            @Param("from") OffsetDateTime from,
+            @Param("to") OffsetDateTime to
     );
 
     @Query(value = """
-    SELECT 
+    SELECT
         COUNT(*) AS total_clicks,
         COUNT(DISTINCT c.ip_address_hash) AS unique_clicks
     FROM click_event c
     WHERE c.short_key = :shortKey
     """, nativeQuery = true)
     LifetimeTotals getLifetimeTotals(@Param("shortKey") String shortKey);
+
 }

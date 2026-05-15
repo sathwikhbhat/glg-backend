@@ -9,18 +9,15 @@ import lombok.NoArgsConstructor;
         uniqueConstraints = @UniqueConstraint(
                 name = "uk_visitor_shortkey_iphash",
                 columnNames = {"short_key", "ip_address_hash"}
-        ),
-        indexes = @Index(
-                name = "idx_visitor_short_key_ip_address_hash",
-                columnList = "short_key, ip_address_hash"
         ))
 @Getter
 @NoArgsConstructor
 public class VisitorFingerprint {
 
     @Id
-    @GeneratedValue
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "visitor_id")
+    private Long visitorId;
 
     @Column(name = "short_key", nullable = false)
     private String shortKey;

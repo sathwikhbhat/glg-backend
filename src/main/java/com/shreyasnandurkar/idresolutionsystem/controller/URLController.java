@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.net.URI;
-import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 public class URLController {
@@ -33,7 +33,7 @@ public class URLController {
         this.userService = userService;
     }
 
-    @GetMapping("/health")
+    @GetMapping("/actuator/health")
     public ResponseEntity<String> healthCheck() {
         return ResponseEntity.ok("GoLinkGone OK");
     }
@@ -47,7 +47,7 @@ public class URLController {
     public ResponseEntity<CreateResponse> createShortLink(@Valid @RequestBody CreateRequest request,
                                                           @AuthenticationPrincipal Jwt jwt) {
 
-        String userId = (jwt != null) ? jwt.getSubject() : null;
+        UUID userId = (jwt != null) ? UUID.fromString(jwt.getSubject()) : null;
         CreateResponse response = urlShortenerService.createShortLink(request.originalUrl(), userId);
         return ResponseEntity.ok(response);
     }
@@ -55,13 +55,11 @@ public class URLController {
     @GetMapping("/{shortKey}")
     public ResponseEntity<Void> redirectUrl(@PathVariable String shortKey, HttpServletRequest request) {
 
-        String ip = Optional.ofNullable(request.getHeader("X-Forwarded-For"))
-                .map(x -> x.split(",")[0].trim())
-                .orElse(request.getRemoteAddr());
-
+        String ip = request.getRemoteAddr();
         String userAgent = request.getHeader("User-Agent");
+        String secChUaMobile = request.getHeader("Sec-CH-UA-Mobile");
 
-        String originalUrl = urlShortenerService.redirectUrl(shortKey, ip, userAgent);
+        String originalUrl = urlShortenerService.redirectUrl(shortKey, ip, userAgent, secChUaMobile);
         return ResponseEntity.status(302).location(URI.create(originalUrl)).build();
     }
 
@@ -71,7 +69,8 @@ public class URLController {
                                                  @RequestParam(defaultValue = "30")int size){
 
 
-        Page<LinkItemResponse> links = urlShortenerService.getUserLinks(jwt.getSubject(), page, size);
+        Page<LinkItemResponse> links = urlShortenerService.getUserLinks(UUID.fromString(jwt.getSubject()), page,
+                Math.min(size, 100));
         return ResponseEntity.ok(links);
     }
 
@@ -79,7 +78,7 @@ public class URLController {
     public ResponseEntity<DashboardResponse> getDashboard(@PathVariable String shortKey, @RequestParam(defaultValue =
             "24h") String timeRange, @AuthenticationPrincipal Jwt jwt) {
 
-        if (!ownerService.isOwner(shortKey, jwt.getSubject())) {
+        if (!ownerService.isOwner(shortKey, UUID.fromString(jwt.getSubject()))) {
             throw new AccessDeniedException("Access Denied");
         }
 
@@ -90,13 +89,13 @@ public class URLController {
     @DeleteMapping("/{shortKey}")
     public ResponseEntity<Void> deleteLink(@PathVariable String shortKey, @AuthenticationPrincipal Jwt jwt) {
 
-        urlShortenerService.deleteLink(shortKey, jwt.getSubject());
+        urlShortenerService.deleteLink(shortKey, UUID.fromString(jwt.getSubject()));
         return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/account")
     public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal Jwt jwt) {
-        userService.deleteAccount(jwt.getSubject());
+        userService.deleteAccount(UUID.fromString(jwt.getSubject()));
         return ResponseEntity.noContent().build();
     }
 

@@ -1,6 +1,7 @@
 package com.shreyasnandurkar.idresolutionsystem.repository;
 
 import com.shreyasnandurkar.idresolutionsystem.entity.LinkItemResponse;
+import com.shreyasnandurkar.idresolutionsystem.entity.ResolvedLinkProjection;
 import com.shreyasnandurkar.idresolutionsystem.entity.WebsiteUrl;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,17 +17,25 @@ public interface WebsiteUrlRepository extends JpaRepository<WebsiteUrl, UUID> {
 
     WebsiteUrl findByShortKey(String shortKey);
 
-    boolean existsByShortKeyAndUserId(String shortKey, String userId);
+    @Query("""
+        SELECT w.originalUrl AS originalUrl, w.userId AS userId
+        FROM WebsiteUrl w
+        WHERE w.shortKey = :shortKey
+    """)
+    ResolvedLinkProjection findResolvedByShortKey(@Param("shortKey") String shortKey);
+
+    boolean existsByShortKeyAndUserId(String shortKey, UUID userId);
 
     @Query("SELECT w.shortKey FROM WebsiteUrl w WHERE w.userId = :userId")
-    List<String> findAllShortKeysByUserId(@Param("userId") String userId);
+    List<String> findAllShortKeysByUserId(@Param("userId") UUID userId);
 
     @Query("SELECT u.shortKey FROM WebsiteUrl u")
     List<String> findAllShortKeys();
 
     @Modifying
     @Query("DELETE FROM WebsiteUrl w WHERE w.shortKey = :shortKey AND w.userId = :userId")
-    int deleteByShortKeyAndUserId(@Param("shortKey") String shortKey, @Param("userId") String userId);
+    int deleteByShortKeyAndUserId(@Param("shortKey") String shortKey, @Param("userId") UUID userId);
+
 
     @Query("""
         SELECT new com.shreyasnandurkar.idresolutionsystem.entity.LinkItemResponse(
@@ -35,5 +44,5 @@ public interface WebsiteUrlRepository extends JpaRepository<WebsiteUrl, UUID> {
         FROM WebsiteUrl w
         WHERE w.userId = :userId
     """)
-    Page<LinkItemResponse> findUserLinks(@Param("userId") String userId, Pageable pageable);
+    Page<LinkItemResponse> findUserLinks(@Param("userId") UUID userId, Pageable pageable);
 }

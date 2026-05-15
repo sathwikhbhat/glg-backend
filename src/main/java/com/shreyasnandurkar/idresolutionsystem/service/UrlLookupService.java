@@ -1,7 +1,7 @@
 package com.shreyasnandurkar.idresolutionsystem.service;
 
 import com.shreyasnandurkar.idresolutionsystem.entity.ResolvedLink;
-import com.shreyasnandurkar.idresolutionsystem.entity.WebsiteUrl;
+import com.shreyasnandurkar.idresolutionsystem.entity.ResolvedLinkProjection;
 import com.shreyasnandurkar.idresolutionsystem.repository.WebsiteUrlRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.HttpStatus;
@@ -20,9 +20,9 @@ public class UrlLookupService {
     @Cacheable(value = "urlCache", key = "#shortKey")
     public ResolvedLink resolveUrl(String shortKey) {
 
-        WebsiteUrl entity = repository.findByShortKey(shortKey);
-        if (entity == null)
+        ResolvedLinkProjection projection = repository.findResolvedByShortKey(shortKey);
+        if (projection == null)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid URL");
-        return new ResolvedLink(entity.getOriginalUrl(), entity.getUserId() != null);
+        return new ResolvedLink(projection.getOriginalUrl(), projection.getUserId() != null);
     }
 }

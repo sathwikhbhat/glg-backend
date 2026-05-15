@@ -1,10 +1,10 @@
 package com.shreyasnandurkar.idresolutionsystem.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public record LinkItemResponse (
     String shortKey,
     String shortUrl,
     String originalUrl,
-    LocalDateTime createdAt
+    OffsetDateTime createdAt
 ) {}

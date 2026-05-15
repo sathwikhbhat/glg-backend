@@ -5,14 +5,14 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 @Entity
 @Table(
         name = "website_url",
         indexes = {
-                @Index(name = "idx_short_key", columnList = "short_Key"),
                 @Index(name = "idx_user_created", columnList = "user_id, created_at")
         }
 )
@@ -24,7 +24,7 @@ public class WebsiteUrl {
     private UUID linkId;
 
     @Column(name = "user_id")
-    private String userId;
+    private UUID userId;
 
     @Column(name = "original_url", nullable = false)
     private String originalUrl;
@@ -33,9 +33,9 @@ public class WebsiteUrl {
     private String shortKey;
 
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
-    public WebsiteUrl(String originalUrl, String shortKey, String userId) {
+    public WebsiteUrl(String originalUrl, String shortKey, UUID userId) {
         this.linkId = UuidCreator.getTimeOrderedEpoch();
         this.originalUrl = originalUrl;
         this.shortKey = shortKey;
@@ -44,6 +44,6 @@ public class WebsiteUrl {
 
     @PrePersist
     public void prePersist() {
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = OffsetDateTime.now(ZoneOffset.UTC);
     }
 }

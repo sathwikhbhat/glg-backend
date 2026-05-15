@@ -7,7 +7,8 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -71,17 +72,17 @@ public class DashboardService {
     }
 
     private TimeWindow resolveWindow(String timeRange) {
-        LocalDateTime to = LocalDateTime.now();
+        OffsetDateTime to = OffsetDateTime.now(ZoneOffset.UTC);
         return switch (timeRange.toLowerCase()) {
             case "24h" -> new TimeWindow(to.minusHours(24), to, "hour");
             case "7d" -> new TimeWindow(to.minusDays(7), to, "day");
             case "30d" -> new TimeWindow(to.minusDays(30), to, "day");
-            case "all" -> new TimeWindow(LocalDateTime.of(1970, 1, 1, 0, 0), to, "month");
+            case "all" -> new TimeWindow(OffsetDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC), to, "month");
             default -> throw new IllegalArgumentException(
                     "Unsupported timeRange '%s'. Use: 24h | 7d | 30d | all".formatted(timeRange));
         };
     }
 
-    private record TimeWindow(LocalDateTime from, LocalDateTime to, String granularity) {
+    private record TimeWindow(OffsetDateTime from, OffsetDateTime to, String granularity) {
     }
 }

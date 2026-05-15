@@ -4,6 +4,8 @@ import com.shreyasnandurkar.idresolutionsystem.repository.WebsiteUrlRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.util.UUID;
+
 @Service
 public class OwnerService {
 
@@ -14,7 +16,7 @@ public class OwnerService {
     }
 
     @Cacheable(value = "ownershipCache", key = "#shortKey + '_' + #userId")
-    public boolean isOwner(String shortKey, String userId) {
+    public boolean isOwner(String shortKey, UUID userId) {
         return urlRepository.existsByShortKeyAndUserId(shortKey, userId);
     }
 }
