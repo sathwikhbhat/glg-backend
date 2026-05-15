@@ -8,7 +8,7 @@
         <version>4.0.3</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
-    <groupId>com.shreyasnandurkar</groupId>
+    <groupId>com.golinkgone</groupId>
     <artifactId>IdResolutionSystem</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>IdResolutionSystem</name>
