@@ -1,9 +1,18 @@
 app:
   base-url: ${BASE_URL}
   allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  rate-limit:
+    create:
+      capacity: ${RATE_LIMIT_CREATE_CAPACITY:10}
+      refill-per-minute: ${RATE_LIMIT_CREATE_REFILL_PER_MINUTE:10}
 
 server:
   port: 8080
+  forward-headers-strategy: native
+  tomcat:
+    remoteip:
+      remote-ip-header: X-Forwarded-For
+      protocol-header: X-Forwarded-Proto
 
 spring:
   datasource:
@@ -11,7 +20,7 @@ spring:
     driver-class-name: org.postgresql.Driver
 
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 40
       minimum-idle: 20
       idle-timeout: 30000
       connection-timeout: 20000
@@ -19,7 +28,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect

@@ -36,4 +36,4 @@ build/
 .env
 
 ### .mmdb ###
-*.mmdb
+GeoLite2-City.mmdb
