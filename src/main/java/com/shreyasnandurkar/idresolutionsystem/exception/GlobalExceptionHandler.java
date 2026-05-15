@@ -57,7 +57,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+    public ResponseEntity<ApiError> handleUnexpected() {
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 

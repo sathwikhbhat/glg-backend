@@ -15,8 +15,6 @@ import java.util.UUID;
 
 public interface WebsiteUrlRepository extends JpaRepository<WebsiteUrl, UUID> {
 
-    WebsiteUrl findByShortKey(String shortKey);
-
     @Query("""
         SELECT w.originalUrl AS originalUrl, w.userId AS userId
         FROM WebsiteUrl w

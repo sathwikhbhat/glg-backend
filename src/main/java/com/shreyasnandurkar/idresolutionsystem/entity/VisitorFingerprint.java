@@ -24,9 +24,4 @@ public class VisitorFingerprint {
 
     @Column(name = "ip_address_hash", nullable = false)
     private String ipAddressHash;
-
-    public VisitorFingerprint(String shortKey, String ipAddressHash) {
-        this.shortKey = shortKey;
-        this.ipAddressHash = ipAddressHash;
-    }
 }
