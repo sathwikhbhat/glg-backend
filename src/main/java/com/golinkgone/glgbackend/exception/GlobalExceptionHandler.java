@@ -57,7 +57,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiError> handleUnexpected() {
+    public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
+        log.error("Unhandled exception [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
+        Throwable cause = ex.getCause();
+        while (cause != null) {
+            log.error("  caused by [{}]: {}", cause.getClass().getName(), cause.getMessage());
+            cause = cause.getCause();
+        }
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 

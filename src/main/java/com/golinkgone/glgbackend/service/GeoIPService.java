@@ -75,16 +75,16 @@ public class GeoIPService {
             InetAddress address = InetAddresses.forString(ip);
             CityResponse response = reader.city(address);
 
-            String continent = response.continent().name();
-            String country   = response.country().name();
-            String region    = response.mostSpecificSubdivision().name();
-            String city      = response.city().name();
+            String continent   = response.continent().name();
+            String countryCode = response.country().isoCode();
+            String region      = response.mostSpecificSubdivision().name();
+            String city        = response.city().name();
 
             return new GeoLocation(
-                    continent != null ? continent : "UNKNOWN",
-                    country   != null ? country   : "UNKNOWN",
-                    region    != null ? region    : "UNKNOWN",
-                    city      != null ? city      : "UNKNOWN"
+                    continent   != null ? continent   : "UNKNOWN",
+                    countryCode != null ? countryCode : "UNKNOWN",
+                    region      != null ? region      : "UNKNOWN",
+                    city        != null ? city        : "UNKNOWN"
             );
         } catch (AddressNotFoundException e) {
             log.debug("No geo data for IP hash [{}]", ip.hashCode());

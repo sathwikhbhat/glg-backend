@@ -27,6 +27,14 @@ public class SecurityConfig {
                 .headers(headers -> headers
                         .contentTypeOptions(Customizer.withDefaults())
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
+                        // HSTS: enforce HTTPS for one year for both domains and all subdomains.
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .preload(true)
+                                .maxAgeInSeconds(31_536_000))
+                        .referrerPolicy(rp -> rp.policy(
+                                org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
+                                        .ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
                 )
 
                 .cors(cors -> cors.configurationSource(request -> {
@@ -34,6 +42,8 @@ public class SecurityConfig {
                     config.setAllowedOrigins(allowedOrigins);
                     config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
                     config.setAllowedHeaders(List.of("*"));
+                    // Cache preflight for an hour so the dashboard doesn't preflight every call.
+                    config.setMaxAge(3600L);
                     return config;
                 }))
                 // 2. Disable CSRF (safe to do for stateless REST APIs using JWTs)

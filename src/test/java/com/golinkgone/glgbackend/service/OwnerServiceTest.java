@@ -7,6 +7,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -19,18 +20,19 @@ class OwnerServiceTest {
     @InjectMocks OwnerService ownerService;
 
     @Test
-    void isOwner_returnsTrue_whenRepositoryConfirms() {
+    void resolveOwnedLinkId_returnsLinkId_whenRepositoryConfirms() {
         UUID userId = UUID.randomUUID();
-        when(repository.existsByShortKeyAndUserId("abc123", userId)).thenReturn(true);
+        UUID linkId = UUID.randomUUID();
+        when(repository.findLinkIdByShortKeyAndUserId("abc123", userId)).thenReturn(Optional.of(linkId));
 
-        assertThat(ownerService.isOwner("abc123", userId)).isTrue();
+        assertThat(ownerService.resolveOwnedLinkId("abc123", userId)).contains(linkId);
     }
 
     @Test
-    void isOwner_returnsFalse_whenRepositoryDenies() {
+    void resolveOwnedLinkId_returnsEmpty_whenRepositoryDenies() {
         UUID userId = UUID.randomUUID();
-        when(repository.existsByShortKeyAndUserId("abc123", userId)).thenReturn(false);
+        when(repository.findLinkIdByShortKeyAndUserId("abc123", userId)).thenReturn(Optional.empty());
 
-        assertThat(ownerService.isOwner("abc123", userId)).isFalse();
+        assertThat(ownerService.resolveOwnedLinkId("abc123", userId)).isEmpty();
     }
 }

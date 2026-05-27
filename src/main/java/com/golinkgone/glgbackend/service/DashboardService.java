@@ -1,88 +1,158 @@
 package com.golinkgone.glgbackend.service;
 
-import com.golinkgone.glgbackend.entity.*;
-import com.golinkgone.glgbackend.repository.ClickEventRepository;
+import com.golinkgone.glgbackend.entity.CityStats;
+import com.golinkgone.glgbackend.entity.ClickStats;
+import com.golinkgone.glgbackend.entity.CountryStats;
+import com.golinkgone.glgbackend.entity.DashboardResponse;
+import com.golinkgone.glgbackend.entity.DeviceStats;
+import com.golinkgone.glgbackend.entity.LinkSummary;
+import com.golinkgone.glgbackend.repository.DashboardReadRepository;
+import com.golinkgone.glgbackend.repository.DashboardReadRepository.LifetimeTotals;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
+import java.time.DateTimeException;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
 public class DashboardService {
 
-    private final ClickEventRepository clickEventRepository;
-    private final Executor dashboardExecutor;
+    private static final Set<String> ALLOWED_TIME_RANGES = Set.of("24h", "7d", "30d", "all");
+    private static final Set<String> ALLOWED_GRANULARITIES = Set.of("hour", "day", "week", "month");
+    private static final Pattern TZ_PATTERN = Pattern.compile("^[A-Za-z_]+(?:/[A-Za-z_+\\-0-9]+){0,2}$");
+    private static final int TOP_COUNTRIES_LIMIT = 50;
+    private static final int TOP_CITIES_LIMIT = 15;
 
-    public DashboardService(ClickEventRepository clickEventRepository,
-                            @Qualifier("dashboardExecutor") Executor dashboardExecutor) {
-        this.clickEventRepository = clickEventRepository;
-        this.dashboardExecutor = dashboardExecutor;
+    private final DashboardReadRepository readRepository;
+    private final Executor dashboardReadExecutor;
+
+    /**
+     * Self-reference resolved through the Spring proxy so that calls from
+     * Dashboard to the @Cacheable methods go through caching.
+     */
+    @Autowired
+    @Lazy
+    private DashboardService self;
+
+    public DashboardService(DashboardReadRepository readRepository,
+                            @Qualifier("dashboardReadExecutor") Executor dashboardReadExecutor) {
+        this.readRepository = readRepository;
+        this.dashboardReadExecutor = dashboardReadExecutor;
     }
 
-    @Cacheable(value = "dashboardAnalyticsCache", key = "#shortKey + '_' + #timeRange", sync = true)
-    public DashboardResponse getDashboard(String shortKey, String timeRange) {
+    public DashboardResponse getDashboard(String shortKey, UUID linkId,
+                                          String timeRange, String granularity, String tz) {
+        String normalizedRange = normalizeTimeRange(timeRange);
+        String normalizedGranularity = normalizeGranularity(granularity);
+        String normalizedTz = normalizeTz(tz);
 
-        log.debug("Cache miss – querying DB for shortKey={} timeRange={}", shortKey, timeRange);
+        CompletableFuture<LinkSummary> summaryF = CompletableFuture.supplyAsync(
+                () -> self.getLinkSummary(shortKey, linkId), dashboardReadExecutor);
 
-        TimeWindow window = resolveWindow(timeRange);
+        CompletableFuture<List<ClickStats>> timelineF = CompletableFuture.supplyAsync(
+                () -> self.getTimeline(shortKey, linkId,
+                        normalizedRange, normalizedGranularity, normalizedTz),
+                dashboardReadExecutor);
 
-        CompletableFuture<List<ClickStats>> totalsFuture = CompletableFuture.supplyAsync(
-                () -> clickEventRepository.getTotals(shortKey, window.from(), window.to(), window.granularity()),
-                dashboardExecutor
+        CompletableFuture.allOf(summaryF, timelineF).join();
+
+        LinkSummary summary = summaryF.join();
+        LifetimeTotals lifetime = summary.lifetimeTotals();
+
+        return new DashboardResponse(
+                lifetime.totalClicks(),
+                lifetime.newVisitors(),
+                timelineF.join(),
+                summary.topCountries(),
+                summary.topCities(),
+                summary.deviceBreakdown()
         );
-
-        CompletableFuture<List<CountryStats>> countriesFuture = CompletableFuture.supplyAsync(
-                () -> clickEventRepository.getTopCountries(shortKey, window.from(), window.to()),
-                dashboardExecutor
-        );
-
-        CompletableFuture<List<CityStats>> citiesFuture = CompletableFuture.supplyAsync(
-                () -> clickEventRepository.getTopCities(shortKey, window.from(), window.to()),
-                dashboardExecutor
-        );
-
-        CompletableFuture<LifetimeTotals> lifetimeFuture = CompletableFuture.supplyAsync(
-                () -> clickEventRepository.getLifetimeTotals(shortKey),
-                dashboardExecutor
-        );
-
-        try {
-            CompletableFuture.allOf(totalsFuture, countriesFuture, citiesFuture, lifetimeFuture).join();
-            LifetimeTotals lifetime = lifetimeFuture.join();
-
-            return new DashboardResponse(
-                    lifetime.getTotalClicks(),
-                    lifetime.getUniqueClicks(),
-                    totalsFuture.join(),
-                    countriesFuture.join(),
-                    citiesFuture.join()
-            );
-        }catch (CompletionException ex) {
-            log.error("Failed to load dashboard analytics for shortKey={} timeRange={}", shortKey, timeRange, ex);
-            throw new IllegalStateException("Failed to load dashboard analytics", ex);
-        }
     }
 
-    private TimeWindow resolveWindow(String timeRange) {
+    @Cacheable(value = "linkSummaryCache", key = "#shortKey", sync = true)
+    public LinkSummary getLinkSummary(String shortKey, UUID linkId) {
+        log.debug("linkSummaryCache miss – linkId={}", linkId);
+
+        CompletableFuture<LifetimeTotals> totalsF = CompletableFuture.supplyAsync(
+                () -> readRepository.fetchLifetimeTotals(linkId), dashboardReadExecutor);
+        CompletableFuture<List<CountryStats>> countriesF = CompletableFuture.supplyAsync(
+                () -> readRepository.fetchTopCountries(linkId, TOP_COUNTRIES_LIMIT), dashboardReadExecutor);
+        CompletableFuture<List<CityStats>> citiesF = CompletableFuture.supplyAsync(
+                () -> readRepository.fetchTopCities(linkId, TOP_CITIES_LIMIT), dashboardReadExecutor);
+        CompletableFuture<List<DeviceStats>> devicesF = CompletableFuture.supplyAsync(
+                () -> readRepository.fetchDeviceBreakdown(linkId), dashboardReadExecutor);
+
+        CompletableFuture.allOf(totalsF, countriesF, citiesF, devicesF).join();
+
+        return new LinkSummary(totalsF.join(), countriesF.join(), citiesF.join(), devicesF.join());
+    }
+
+    @Cacheable(value = "dashboardTimelineCache",
+            key = "#shortKey + '_' + #timeRange + '_' + #granularity + '_' + #tz",
+            sync = true)
+    public List<ClickStats> getTimeline(String shortKey, UUID linkId,
+                                        String timeRange, String granularity, String tz) {
+        log.debug("dashboardTimelineCache miss – linkId={} timeRange={} granularity={} tz={}",
+                linkId, timeRange, granularity, tz);
+        return "all".equals(timeRange)
+                ? readRepository.fetchMonthlyTimeline(linkId)
+                : fetchDynamicTimeline(linkId, timeRange, granularity, tz);
+    }
+
+    private List<ClickStats> fetchDynamicTimeline(UUID linkId, String range, String granularity, String tz) {
         OffsetDateTime to = OffsetDateTime.now(ZoneOffset.UTC);
-        return switch (timeRange.toLowerCase()) {
-            case "24h" -> new TimeWindow(to.minusHours(24), to, "hour");
-            case "7d" -> new TimeWindow(to.minusDays(7), to, "day");
-            case "30d" -> new TimeWindow(to.minusDays(30), to, "day");
-            case "all" -> new TimeWindow(OffsetDateTime.of(1970, 1, 1, 0, 0, 0, 0, ZoneOffset.UTC), to, "month");
-            default -> throw new IllegalArgumentException(
-                    "Unsupported timeRange '%s'. Use: 24h | 7d | 30d | all".formatted(timeRange));
+        OffsetDateTime from = switch (range) {
+            case "24h" -> to.minusHours(24);
+            case "7d"  -> to.minusDays(7);
+            case "30d" -> to.minusDays(30);
+            default -> throw new IllegalArgumentException("Unexpected range: " + range);
         };
+        return readRepository.fetchLogTimeline(linkId, from, to, granularity, tz);
     }
 
-    private record TimeWindow(OffsetDateTime from, OffsetDateTime to, String granularity) {
+    private static String normalizeTimeRange(String timeRange) {
+        if (timeRange == null) return "24h";
+        String lower = timeRange.toLowerCase();
+        if (!ALLOWED_TIME_RANGES.contains(lower)) {
+            throw new IllegalArgumentException(
+                    "Unsupported timeRange '%s'. Use: 24h | 7d | 30d | all".formatted(timeRange));
+        }
+        return lower;
+    }
+
+    private static String normalizeGranularity(String granularity) {
+        if (granularity == null || granularity.isBlank()) return "day";
+        String lower = granularity.toLowerCase();
+        if (!ALLOWED_GRANULARITIES.contains(lower)) {
+            throw new IllegalArgumentException(
+                    "Unsupported granularity '%s'. Use: hour | day | week | month".formatted(granularity));
+        }
+        return lower;
+    }
+
+    private static String normalizeTz(String tz) {
+        if (tz == null || tz.isBlank()) return "UTC";
+        if (!TZ_PATTERN.matcher(tz).matches()) {
+            throw new IllegalArgumentException("Invalid timezone: " + tz);
+        }
+        try {
+            ZoneId.of(tz);
+        } catch (DateTimeException ex) {
+            throw new IllegalArgumentException("Invalid timezone: " + tz);
+        }
+        return tz;
     }
 }

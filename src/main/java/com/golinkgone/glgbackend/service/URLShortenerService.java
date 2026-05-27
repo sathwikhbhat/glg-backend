@@ -30,18 +30,18 @@ import java.util.UUID;
 public class URLShortenerService {
     private final AppProperties appProperties;
     private final WebsiteUrlRepository repository;
-    private final AnalyticsService analyticsService;
+    private final ClickIngestionService clickIngestionService;
     private final UrlLookupService urlLookupService;
     private final QRCodeService qrService;
     private final KeyStore keyStore;
     private final CacheManager cacheManager;
 
     public URLShortenerService(AppProperties appProperties, WebsiteUrlRepository repository,
-                               AnalyticsService analyticsService, UrlLookupService urlLookupService,
+                               ClickIngestionService clickIngestionService, UrlLookupService urlLookupService,
                                KeyStore keyStore, QRCodeService qrService, CacheManager cacheManager) {
         this.appProperties = appProperties;
         this.repository = repository;
-        this.analyticsService = analyticsService;
+        this.clickIngestionService = clickIngestionService;
         this.urlLookupService = urlLookupService;
         this.keyStore = keyStore;
         this.qrService = qrService;
@@ -103,7 +103,8 @@ public class URLShortenerService {
         }
     }
 
-    public String redirectUrl(String shortKey, String ip, String userAgent, String secChUaMobile) {
+    public String redirectUrl(String shortKey, String ip, String userAgent, String secChUaMobile,
+                              boolean countClick) {
 
         if (!StringUtils.hasText(shortKey)) {
             throw new IllegalArgumentException("shortKey must not be blank");
@@ -114,8 +115,8 @@ public class URLShortenerService {
         }
 
         ResolvedLink resolved = urlLookupService.resolveUrl(shortKey);
-        if(resolved.hasOwner()){
-            analyticsService.recordClick(shortKey, ip, userAgent, secChUaMobile);
+        if (countClick && resolved.hasOwner()) {
+            clickIngestionService.enqueueClick(resolved.linkId(), ip, userAgent, secChUaMobile);
         }
 
         return resolved.originalUrl();
@@ -146,13 +147,12 @@ public class URLShortenerService {
             Cache urlCache = cacheManager.getCache("urlCache");
             if (urlCache != null) urlCache.evict(shortKey);
 
-            Cache analyticsCache = cacheManager.getCache("dashboardAnalyticsCache");
-            if (analyticsCache != null) {
-                analyticsCache.evict(shortKey + "_24h");
-                analyticsCache.evict(shortKey + "_7d");
-                analyticsCache.evict(shortKey + "_30d");
-                analyticsCache.evict(shortKey + "_all");
-            }
+            Cache linkSummaryCache = cacheManager.getCache("linkSummaryCache");
+            if (linkSummaryCache != null) linkSummaryCache.evict(shortKey);
+
+            // Timeline cache keys are "<shortKey>_<range>_<gran>_<tz>". Evict only
+            // entries for this link, not every user's cache.
+            evictTimelineForShortKey(shortKey);
 
             Cache ownershipCache = cacheManager.getCache("ownershipCache");
             if (ownershipCache != null) {
@@ -161,6 +161,16 @@ public class URLShortenerService {
         }
         else {
             throw new ShortKeyNotFoundException("Link not found or access denied");
+        }
+    }
+
+    private void evictTimelineForShortKey(String shortKey) {
+        Cache timelineCache = cacheManager.getCache("dashboardTimelineCache");
+        if (timelineCache == null) return;
+        Object nativeCache = timelineCache.getNativeCache();
+        if (nativeCache instanceof com.github.benmanes.caffeine.cache.Cache<?, ?> caffeine) {
+            String prefix = shortKey + "_";
+            caffeine.asMap().keySet().removeIf(k -> k instanceof String s && s.startsWith(prefix));
         }
     }
 

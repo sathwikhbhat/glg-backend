@@ -2,6 +2,7 @@ package com.golinkgone.glgbackend.service;
 
 import com.golinkgone.glgbackend.config.KeyStore;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
@@ -10,6 +11,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
+@Slf4j
 public class UserService {
 
     private final SupabaseAdminClient supabaseAdminClient;
@@ -24,11 +26,12 @@ public class UserService {
         this.keyStore = keyStore;
         this.cacheManager = cacheManager;
     }
-
+    
     public void deleteAccount(UUID userId) {
         List<String> userKeys = urlRepository.findAllShortKeysByUserId(userId);
 
         supabaseAdminClient.deleteUser(userId.toString());
+        log.info("Deleted account {}; cascade removed {} link(s)", userId, userKeys.size());
 
         evictUserCaches(userKeys, userId);
     }
@@ -36,18 +39,31 @@ public class UserService {
     private void evictUserCaches(List<String> userKeys, UUID userId) {
         Cache urlCache = cacheManager.getCache("urlCache");
         Cache ownershipCache = cacheManager.getCache("ownershipCache");
-        Cache analyticsCache = cacheManager.getCache("dashboardAnalyticsCache");
+        Cache linkSummaryCache = cacheManager.getCache("linkSummaryCache");
 
         for (String key : userKeys) {
             keyStore.removeKey(key);
             if (urlCache != null) urlCache.evict(key);
+            if (linkSummaryCache != null) linkSummaryCache.evict(key);
             if (ownershipCache != null) ownershipCache.evict(key + "_" + userId);
-            if (analyticsCache != null) {
-                analyticsCache.evict(key + "_24h");
-                analyticsCache.evict(key + "_7d");
-                analyticsCache.evict(key + "_30d");
-                analyticsCache.evict(key + "_all");
-            }
         }
+
+        evictTimelineForShortKeys(userKeys);
+    }
+
+    private void evictTimelineForShortKeys(List<String> shortKeys) {
+        if (shortKeys.isEmpty()) return;
+        Cache timelineCache = cacheManager.getCache("dashboardTimelineCache");
+        if (timelineCache == null) return;
+        Object nativeCache = timelineCache.getNativeCache();
+        if (!(nativeCache instanceof com.github.benmanes.caffeine.cache.Cache<?, ?> caffeine)) return;
+
+        caffeine.asMap().keySet().removeIf(k -> {
+            if (!(k instanceof String s)) return false;
+            for (String shortKey : shortKeys) {
+                if (s.startsWith(shortKey + "_")) return true;
+            }
+            return false;
+        });
     }
 }

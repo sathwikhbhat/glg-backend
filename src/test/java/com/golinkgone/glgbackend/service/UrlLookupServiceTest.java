@@ -56,7 +56,9 @@ class UrlLookupServiceTest {
     }
 
     private ResolvedLinkProjection projection(String url, UUID userId) {
+        UUID linkId = UUID.randomUUID();
         return new ResolvedLinkProjection() {
+            @Override public UUID getLinkId() { return linkId; }
             @Override public String getOriginalUrl() { return url; }
             @Override public UUID getUserId() { return userId; }
         };

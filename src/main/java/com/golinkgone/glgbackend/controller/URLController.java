@@ -44,7 +44,7 @@ public class URLController {
 
     @GetMapping("/info")
     public ResponseEntity<String> info() {
-        return ResponseEntity.ok("This is GoLineGone :P");
+        return ResponseEntity.ok("This is GoLinkGone :P");
     }
 
     @PostMapping("/create")
@@ -56,14 +56,15 @@ public class URLController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/{shortKey}")
+    @RequestMapping(value = "/{shortKey}", method = {RequestMethod.GET, RequestMethod.HEAD})
     public ResponseEntity<Void> redirectUrl(@PathVariable String shortKey, HttpServletRequest request) {
+        
+        boolean countClick = "GET".equalsIgnoreCase(request.getMethod());
+        String ip = countClick ? request.getRemoteAddr() : null;
+        String userAgent = countClick ? request.getHeader("User-Agent") : null;
+        String secChUaMobile = countClick ? request.getHeader("Sec-CH-UA-Mobile") : null;
 
-        String ip = request.getRemoteAddr();
-        String userAgent = request.getHeader("User-Agent");
-        String secChUaMobile = request.getHeader("Sec-CH-UA-Mobile");
-
-        String originalUrl = urlShortenerService.redirectUrl(shortKey, ip, userAgent, secChUaMobile);
+        String originalUrl = urlShortenerService.redirectUrl(shortKey, ip, userAgent, secChUaMobile, countClick);
         return ResponseEntity.status(302).location(URI.create(originalUrl)).build();
     }
 
@@ -79,14 +80,16 @@ public class URLController {
     }
 
     @GetMapping("/{shortKey}/dashboard")
-    public ResponseEntity<DashboardResponse> getDashboard(@PathVariable String shortKey, @RequestParam(defaultValue =
-            "24h") String timeRange, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<DashboardResponse> getDashboard(@PathVariable String shortKey,
+                                                          @RequestParam(defaultValue = "24h") String timeRange,
+                                                          @RequestParam(defaultValue = "day") String granularity,
+                                                          @RequestParam(defaultValue = "UTC") String tz,
+                                                          @AuthenticationPrincipal Jwt jwt) {
 
-        if (!ownerService.isOwner(shortKey, UUID.fromString(jwt.getSubject()))) {
-            throw new AccessDeniedException("Access Denied");
-        }
+        UUID linkId = ownerService.resolveOwnedLinkId(shortKey, UUID.fromString(jwt.getSubject()))
+                .orElseThrow(() -> new AccessDeniedException("Access Denied"));
 
-        DashboardResponse response = dashboardService.getDashboard(shortKey, timeRange);
+        DashboardResponse response = dashboardService.getDashboard(shortKey, linkId, timeRange, granularity, tz);
         return ResponseEntity.ok(response);
     }
 

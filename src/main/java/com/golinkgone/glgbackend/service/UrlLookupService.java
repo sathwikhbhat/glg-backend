@@ -23,6 +23,9 @@ public class UrlLookupService {
         ResolvedLinkProjection projection = repository.findResolvedByShortKey(shortKey);
         if (projection == null)
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid URL");
-        return new ResolvedLink(projection.getOriginalUrl(), projection.getUserId() != null);
+        return new ResolvedLink(
+                projection.getLinkId(),
+                projection.getOriginalUrl(),
+                projection.getUserId() != null);
     }
 }

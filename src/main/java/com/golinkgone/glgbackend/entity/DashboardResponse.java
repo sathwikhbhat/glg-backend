@@ -4,9 +4,9 @@ import java.util.List;
 
 public record DashboardResponse(
         long totalClicks,
-        long uniqueClicks,
+        long newVisitors,
         List<ClickStats> totals,
         List<CountryStats> topCountries,
-        List<CityStats> topCities
-) {
-}
+        List<CityStats> topCities,
+        List<DeviceStats> deviceBreakdown
+) {}
