@@ -20,8 +20,8 @@ public class AsyncConfig {
         return executor;
     }
 
-    @Bean("dashboardExecutor")
-    public Executor dashboardExecutor() {
+    @Bean("dashboardReadExecutor")
+    public Executor dashboardReadExecutor() {
         SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("dashboard-vt-");
         executor.setVirtualThreads(true);
         return executor;

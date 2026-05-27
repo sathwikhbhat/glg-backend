@@ -15,8 +15,12 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager("urlCache", "dashboardAnalyticsCache",
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
+                "urlCache",
+                "linkSummaryCache",
+                "dashboardTimelineCache",
                 "ownershipCache");
+
         cacheManager.registerCustomCache("urlCache",
                 Caffeine.newBuilder()
                         .maximumSize(50_000)
@@ -24,7 +28,16 @@ public class CacheConfig {
                         .recordStats()
                         .build());
 
-        cacheManager.registerCustomCache("dashboardAnalyticsCache",
+        // Per-link aggregates that don't depend on timeRange/granularity/tz.
+        cacheManager.registerCustomCache("linkSummaryCache",
+                Caffeine.newBuilder()
+                        .maximumSize(10_000)
+                        .expireAfterWrite(Duration.ofMinutes(1))
+                        .recordStats()
+                        .build());
+
+        // Per-link timeline keyed by shortKey_timeRange_granularity_tz.
+        cacheManager.registerCustomCache("dashboardTimelineCache",
                 Caffeine.newBuilder()
                         .maximumSize(10_000)
                         .expireAfterWrite(Duration.ofMinutes(1))
