@@ -1,11 +1,10 @@
 package com.golinkgone.glgbackend.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
-public interface ClickStats {
-    LocalDateTime getBucket();
-
-    Long getTotal();
-
-    Long getNewVisitors();
-}
+public record ClickStats(
+        OffsetDateTime bucket,
+        Long total,
+        Long newVisitors,
+        Long uniqueVisitors
+) {}
