@@ -1,0 +1,39 @@
+app:
+  base-url: ${BASE_URL:http://localhost:8080}
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+  rate-limit:
+    create:
+      capacity: 100
+      refill-per-minute: 100
+
+spring:
+  datasource:
+    # WARNING: do not append `reWriteBatchedInserts=true` to DB_URL.
+    # See the header comment in application.yml.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ISSUER_URI}
+          jwk-set-uri: ${JWK_SET_URI}
+          jws-algorithms: ES256
+
+logging:
+  level:
+    org.hibernate.stat: DEBUG
+    com.golinkgone.glgbackend: DEBUG
+
+supabase:
+  project-url: ${PROJECT_URL}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+
+maxmind:
+  db-path: ${MAXMIND_DB_PATH:file:./GeoLite2-City.mmdb}
+  license-key: ${MAXMIND_LICENSE_KEY}

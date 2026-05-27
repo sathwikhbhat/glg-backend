@@ -1,0 +1,48 @@
+app:
+  base-url: https://tryglg.ink
+  allowed-origins: https://www.golinkgone.com,https://golinkgone.com
+  rate-limit:
+    create:
+      capacity: ${RATE_LIMIT_CREATE_CAPACITY:10}
+      refill-per-minute: ${RATE_LIMIT_CREATE_REFILL_PER_MINUTE:10}
+
+spring:
+  datasource:
+    # WARNING: do not append `reWriteBatchedInserts=true` to DB_URL.
+    # See the header comment in application.yml.
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 20000
+      max-lifetime: 1800000
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${ISSUER_URI}
+          jwk-set-uri: ${JWK_SET_URI}
+          jws-algorithms: ES256
+
+logging:
+  level:
+    root: INFO
+    com.golinkgone.glgbackend: INFO
+  file:
+    name: /var/log/glg/app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 14
+
+supabase:
+  project-url: ${PROJECT_URL}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+
+maxmind:
+  db-path: ${MAXMIND_DB_PATH:file:/opt/glg/GeoLite2-City.mmdb}
+  license-key: ${MAXMIND_LICENSE_KEY}

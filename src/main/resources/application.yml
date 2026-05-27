@@ -1,66 +1,40 @@
-app:
-  base-url: ${BASE_URL}
-  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
-  rate-limit:
-    create:
-      capacity: ${RATE_LIMIT_CREATE_CAPACITY:10}
-      refill-per-minute: ${RATE_LIMIT_CREATE_REFILL_PER_MINUTE:10}
+
+# =======================================================================
+# DO NOT enable `reWriteBatchedInserts=true` on the Postgres JDBC URL.
+# Click ingestion relies on per-row return codes from JdbcTemplate.batchUpdate
+# to detect new visitors (INSERT ... ON CONFLICT DO NOTHING → 1 means new,
+# 0 means conflict). reWriteBatchedInserts collapses the batch into one
+# multi-VALUES INSERT and returns a single aggregate count — new-visitor
+# accounting then silently produces wrong numbers.
+# See ClickAggregationRepository and ClickAggregationWriter.
+# =======================================================================
+spring:
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  threads:
+    virtual:
+      enabled: true
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  web:
+    error:
+      whitelabel:
+        enabled: false
+      include-message: never
+      include-stacktrace: never
+      include-binding-errors: never
+      include-exception: false
 
 server:
   port: 8080
+  shutdown: graceful
   forward-headers-strategy: native
   tomcat:
     remoteip:
       remote-ip-header: X-Forwarded-For
       protocol-header: X-Forwarded-Proto
+      internal-proxies: ${TRUSTED_PROXIES:10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|127\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|0:0:0:0:0:0:0:1}
 
-spring:
-  datasource:
-    url: ${DB_URL}
-    driver-class-name: org.postgresql.Driver
-
-    hikari:
-      maximum-pool-size: 40
-      minimum-idle: 20
-      idle-timeout: 30000
-      connection-timeout: 20000
-      max-lifetime: 1800000
-
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-
-  security:
-    oauth2:
-      resourceserver:
-        jwt:
-          issuer-uri: ${ISSUER_URI}
-          jwk-set-uri: ${JWK_SET_URI}
-
-  threads:
-    virtual:
-      enabled: true
-
-
-management:
-  endpoints:
-    web:
-      exposure:
-        include: metrics,health,info
-
-logging:
-  level:
-    org:
-      hibernate:
-        stat: DEBUG
-
-supabase:
-  project-url: ${PROJECT_URL}
-  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
-
-maxmind:
-  db-path: ${MAXMIND_DB_PATH}
-  license-key: ${MAXMIND_LICENSE_KEY}

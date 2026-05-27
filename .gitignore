@@ -41,3 +41,7 @@ build/
 ### json files ###
 .mcp.json
 settings.local.json
+
+### Cluade files ###
+.claude
+CLAUDE.md
