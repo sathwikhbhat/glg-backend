@@ -1,6 +1,9 @@
 package com.golinkgone.glgbackend.entity;
 
-public record ResolvedLink (
+import java.util.UUID;
+
+public record ResolvedLink(
+        UUID linkId,
         String originalUrl,
         boolean hasOwner
-){}
+) {}
