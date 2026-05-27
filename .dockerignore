@@ -1,0 +1,40 @@
+# Only the built JAR is needed in the image — everything else inflates the
+# build context, slows `docker build`, and risks shipping secrets.
+
+# Everything in target/ except the fat JAR
+target/*
+!target/IdResolutionSystem-0.0.1-SNAPSHOT.jar
+
+# Source, tests, build tooling
+src/
+.mvn/
+mvnw
+mvnw.cmd
+pom.xml
+
+# VCS
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Dev-only data files (never bake the mmdb into the image — host mounts it)
+*.mmdb
+
+# Docs and miscellaneous
+README.md
+*.md
+HELP.md
+docs/
+
+# Local env / secrets
+.env
+.env.*
+.claude/
+CLAUDE.md
+settings.local.json
+.mcp.json
