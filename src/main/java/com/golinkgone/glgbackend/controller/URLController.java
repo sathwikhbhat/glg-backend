@@ -89,7 +89,7 @@ public class URLController {
         UUID linkId = ownerService.resolveOwnedLinkId(shortKey, UUID.fromString(jwt.getSubject()))
                 .orElseThrow(() -> new AccessDeniedException("Access Denied"));
 
-        DashboardResponse response = dashboardService.getDashboard(shortKey, linkId, timeRange, granularity, tz);
+        DashboardResponse response = dashboardService.getDashboard(linkId, timeRange, granularity, tz);
         return ResponseEntity.ok(response);
     }
 

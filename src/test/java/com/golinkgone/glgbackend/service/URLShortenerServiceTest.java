@@ -5,6 +5,7 @@ import com.golinkgone.glgbackend.config.KeyStore;
 import com.golinkgone.glgbackend.entity.CreateResponse;
 import com.golinkgone.glgbackend.entity.ResolvedLink;
 import com.golinkgone.glgbackend.entity.WebsiteUrl;
+import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
 import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
 import com.google.zxing.WriterException;
@@ -19,6 +20,7 @@ import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,6 +45,7 @@ class URLShortenerServiceTest {
     @Mock QRCodeService qrService;
     @Mock KeyStore keyStore;
     @Mock CacheManager cacheManager;
+    @Mock BusinessMetrics businessMetrics;
 
     @InjectMocks URLShortenerService service;
 
@@ -100,6 +103,26 @@ class URLShortenerServiceTest {
     }
 
     @Test
+    void createShortLink_rejectsTooLongUrl() {
+        String longUrl = "https://example.com/" + "a".repeat(1100);
+
+        assertThatThrownBy(() -> service.createShortLink(longUrl, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("1024");
+        verify(repository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void createShortLink_throwsAfterMaxCollisionAttempts() {
+        when(repository.saveAndFlush(any(WebsiteUrl.class)))
+                .thenThrow(new DataIntegrityViolationException("dup"));
+
+        assertThatThrownBy(() -> service.createShortLink("https://example.com", null))
+                .isInstanceOf(ShortKeyGenerationException.class);
+        verify(repository, times(3)).saveAndFlush(any(WebsiteUrl.class));
+    }
+
+    @Test
     void createShortLink_returnsNullQr_whenGenerationFails() throws Exception {
         when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenThrow(new IOException("boom"));
 
@@ -149,7 +172,8 @@ class URLShortenerServiceTest {
     @Test
     void deleteLink_evictsCachesAndKeyStore_whenRowDeleted() {
         UUID userId = UUID.randomUUID();
-        when(repository.deleteByShortKeyAndUserId("abc123", userId)).thenReturn(1);
+        UUID linkId = UUID.randomUUID();
+        when(repository.findLinkIdByShortKeyAndUserId("abc123", userId)).thenReturn(Optional.of(linkId));
         Cache urlCache = mock(Cache.class);
         Cache linkSummaryCache = mock(Cache.class);
         Cache timelineCache = mock(Cache.class);
@@ -161,9 +185,10 @@ class URLShortenerServiceTest {
 
         service.deleteLink("abc123", userId);
 
+        verify(repository).deleteByShortKeyAndUserId("abc123", userId);
         verify(keyStore).removeKey("abc123");
         verify(urlCache).evict("abc123");
-        verify(linkSummaryCache).evict("abc123");
+        verify(linkSummaryCache).evict(linkId);
         verify(timelineCache, never()).clear();
         verify(ownershipCache).evict("abc123_" + userId);
     }
@@ -171,10 +196,11 @@ class URLShortenerServiceTest {
     @Test
     void deleteLink_throws404_whenNoRowMatches() {
         UUID userId = UUID.randomUUID();
-        when(repository.deleteByShortKeyAndUserId("abc123", userId)).thenReturn(0);
+        when(repository.findLinkIdByShortKeyAndUserId("abc123", userId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> service.deleteLink("abc123", userId))
                 .isInstanceOf(ShortKeyNotFoundException.class);
+        verify(repository, never()).deleteByShortKeyAndUserId(any(), any());
         verify(keyStore, never()).removeKey(any());
     }
 }

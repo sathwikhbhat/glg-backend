@@ -50,7 +50,8 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 // 3. Define endpoint access rules
                 .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/health", "/info", "/{shortKey:[A-Za-z0-9]{6}}", "/actuator/health").permitAll()
+                        .requestMatchers("/health", "/info", "/{shortKey:[A-Za-z0-9]{6}}",
+                                "/actuator/health", "/actuator/metrics", "/actuator/metrics/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/create").permitAll()
                         .anyRequest().authenticated()
                 )

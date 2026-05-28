@@ -1,6 +1,7 @@
 package com.golinkgone.glgbackend.repository;
 
 import com.golinkgone.glgbackend.entity.LinkItemResponse;
+import com.golinkgone.glgbackend.entity.LinkRef;
 import com.golinkgone.glgbackend.entity.ResolvedLinkProjection;
 import com.golinkgone.glgbackend.entity.WebsiteUrl;
 import org.springframework.data.domain.Page;
@@ -24,13 +25,15 @@ public interface WebsiteUrlRepository extends JpaRepository<WebsiteUrl, UUID> {
     """)
     ResolvedLinkProjection findResolvedByShortKey(@Param("shortKey") String shortKey);
 
-    boolean existsByShortKeyAndUserId(String shortKey, UUID userId);
-
     @Query("SELECT w.linkId FROM WebsiteUrl w WHERE w.shortKey = :shortKey AND w.userId = :userId")
     Optional<UUID> findLinkIdByShortKeyAndUserId(@Param("shortKey") String shortKey, @Param("userId") UUID userId);
 
-    @Query("SELECT w.shortKey FROM WebsiteUrl w WHERE w.userId = :userId")
-    List<String> findAllShortKeysByUserId(@Param("userId") UUID userId);
+    @Query("""
+        SELECT new com.golinkgone.glgbackend.entity.LinkRef(w.shortKey, w.linkId)
+        FROM WebsiteUrl w
+        WHERE w.userId = :userId
+    """)
+    List<LinkRef> findAllLinkRefsByUserId(@Param("userId") UUID userId);
 
     @Query("SELECT u.shortKey FROM WebsiteUrl u")
     List<String> findAllShortKeys();
@@ -38,13 +41,7 @@ public interface WebsiteUrlRepository extends JpaRepository<WebsiteUrl, UUID> {
     @Modifying
     @Transactional
     @Query("DELETE FROM WebsiteUrl w WHERE w.shortKey = :shortKey AND w.userId = :userId")
-    int deleteByShortKeyAndUserId(@Param("shortKey") String shortKey, @Param("userId") UUID userId);
-
-    @Modifying
-    @Transactional
-    @Query("DELETE FROM WebsiteUrl w WHERE w.userId = :userId")
-    int deleteAllByUserId(@Param("userId") UUID userId);
-
+    void deleteByShortKeyAndUserId(@Param("shortKey") String shortKey, @Param("userId") UUID userId);
 
     @Query("""
         SELECT new com.golinkgone.glgbackend.entity.LinkItemResponse(

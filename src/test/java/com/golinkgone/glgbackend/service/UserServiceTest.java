@@ -1,6 +1,7 @@
 package com.golinkgone.glgbackend.service;
 
 import com.golinkgone.glgbackend.config.KeyStore;
+import com.golinkgone.glgbackend.entity.LinkRef;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,9 +31,10 @@ class UserServiceTest {
     @InjectMocks UserService userService;
 
     @Test
-    void deleteAccount_selectsShortKeysBeforeSupabaseUserDelete() {
+    void deleteAccount_selectsLinksBeforeSupabaseUserDelete() {
         UUID userId = UUID.randomUUID();
-        when(urlRepository.findAllShortKeysByUserId(userId)).thenReturn(List.of("abc123"));
+        when(urlRepository.findAllLinkRefsByUserId(userId))
+                .thenReturn(List.of(new LinkRef("abc123", UUID.randomUUID())));
         when(cacheManager.getCache("urlCache")).thenReturn(mock(Cache.class));
         when(cacheManager.getCache("ownershipCache")).thenReturn(mock(Cache.class));
         when(cacheManager.getCache("linkSummaryCache")).thenReturn(mock(Cache.class));
@@ -41,15 +43,17 @@ class UserServiceTest {
         userService.deleteAccount(userId);
 
         InOrder order = inOrder(urlRepository, supabaseAdminClient);
-        order.verify(urlRepository).findAllShortKeysByUserId(userId);
+        order.verify(urlRepository).findAllLinkRefsByUserId(userId);
         order.verify(supabaseAdminClient).deleteUser(userId.toString());
-        verify(urlRepository, never()).deleteAllByUserId(userId);
     }
 
     @Test
     void deleteAccount_evictsPerKeyCachesForUserKeys() {
         UUID userId = UUID.randomUUID();
-        when(urlRepository.findAllShortKeysByUserId(userId)).thenReturn(List.of("abc123", "def456"));
+        List<LinkRef> links = List.of(
+                new LinkRef("abc123", UUID.randomUUID()),
+                new LinkRef("def456", UUID.randomUUID()));
+        when(urlRepository.findAllLinkRefsByUserId(userId)).thenReturn(links);
         Cache urlCache = mock(Cache.class);
         Cache ownershipCache = mock(Cache.class);
         Cache linkSummaryCache = mock(Cache.class);
@@ -61,11 +65,11 @@ class UserServiceTest {
 
         userService.deleteAccount(userId);
 
-        for (String key : List.of("abc123", "def456")) {
-            verify(keyStore).removeKey(key);
-            verify(urlCache).evict(key);
-            verify(linkSummaryCache).evict(key);
-            verify(ownershipCache).evict(key + "_" + userId);
+        for (LinkRef link : links) {
+            verify(keyStore).removeKey(link.shortKey());
+            verify(urlCache).evict(link.shortKey());
+            verify(linkSummaryCache).evict(link.linkId());
+            verify(ownershipCache).evict(link.shortKey() + "_" + userId);
         }
         verify(timelineCache, never()).clear();
     }
@@ -73,7 +77,8 @@ class UserServiceTest {
     @Test
     void deleteAccount_tolerantOfNullCaches() {
         UUID userId = UUID.randomUUID();
-        when(urlRepository.findAllShortKeysByUserId(userId)).thenReturn(List.of("abc123"));
+        when(urlRepository.findAllLinkRefsByUserId(userId))
+                .thenReturn(List.of(new LinkRef("abc123", UUID.randomUUID())));
         when(cacheManager.getCache("urlCache")).thenReturn(null);
         when(cacheManager.getCache("ownershipCache")).thenReturn(null);
         when(cacheManager.getCache("linkSummaryCache")).thenReturn(null);

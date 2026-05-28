@@ -1,6 +1,7 @@
 package com.golinkgone.glgbackend.service;
 
 import com.golinkgone.glgbackend.config.KeyStore;
+import com.golinkgone.glgbackend.entity.LinkRef;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
@@ -28,31 +29,31 @@ public class UserService {
     }
     
     public void deleteAccount(UUID userId) {
-        List<String> userKeys = urlRepository.findAllShortKeysByUserId(userId);
+        List<LinkRef> userLinks = urlRepository.findAllLinkRefsByUserId(userId);
 
         supabaseAdminClient.deleteUser(userId.toString());
-        log.info("Deleted account {}; cascade removed {} link(s)", userId, userKeys.size());
+        log.info("Deleted account {}; cascade removed {} link(s)", userId, userLinks.size());
 
-        evictUserCaches(userKeys, userId);
+        evictUserCaches(userLinks, userId);
     }
 
-    private void evictUserCaches(List<String> userKeys, UUID userId) {
+    private void evictUserCaches(List<LinkRef> userLinks, UUID userId) {
         Cache urlCache = cacheManager.getCache("urlCache");
         Cache ownershipCache = cacheManager.getCache("ownershipCache");
         Cache linkSummaryCache = cacheManager.getCache("linkSummaryCache");
 
-        for (String key : userKeys) {
-            keyStore.removeKey(key);
-            if (urlCache != null) urlCache.evict(key);
-            if (linkSummaryCache != null) linkSummaryCache.evict(key);
-            if (ownershipCache != null) ownershipCache.evict(key + "_" + userId);
+        for (LinkRef link : userLinks) {
+            keyStore.removeKey(link.shortKey());
+            if (urlCache != null) urlCache.evict(link.shortKey());
+            if (linkSummaryCache != null) linkSummaryCache.evict(link.linkId());
+            if (ownershipCache != null) ownershipCache.evict(link.shortKey() + "_" + userId);
         }
 
-        evictTimelineForShortKeys(userKeys);
+        evictTimelineForLinkIds(userLinks);
     }
 
-    private void evictTimelineForShortKeys(List<String> shortKeys) {
-        if (shortKeys.isEmpty()) return;
+    private void evictTimelineForLinkIds(List<LinkRef> userLinks) {
+        if (userLinks.isEmpty()) return;
         Cache timelineCache = cacheManager.getCache("dashboardTimelineCache");
         if (timelineCache == null) return;
         Object nativeCache = timelineCache.getNativeCache();
@@ -60,8 +61,8 @@ public class UserService {
 
         caffeine.asMap().keySet().removeIf(k -> {
             if (!(k instanceof String s)) return false;
-            for (String shortKey : shortKeys) {
-                if (s.startsWith(shortKey + "_")) return true;
+            for (LinkRef link : userLinks) {
+                if (s.startsWith(link.linkId() + "_")) return true;
             }
             return false;
         });

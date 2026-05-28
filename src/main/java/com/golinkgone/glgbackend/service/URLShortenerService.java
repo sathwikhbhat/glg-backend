@@ -8,6 +8,7 @@ import com.golinkgone.glgbackend.config.KeyStore;
 import com.golinkgone.glgbackend.entity.CreateResponse;
 import com.golinkgone.glgbackend.entity.LinkItemResponse;
 import com.golinkgone.glgbackend.entity.WebsiteUrl;
+import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
 import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,10 @@ import java.util.UUID;
 @Service
 @Slf4j
 public class URLShortenerService {
+
+    private static final int MAX_SHORTKEY_ATTEMPTS = 3;
+    private static final int MAX_URL_LENGTH = 1024;
+
     private final AppProperties appProperties;
     private final WebsiteUrlRepository repository;
     private final ClickIngestionService clickIngestionService;
@@ -35,10 +40,12 @@ public class URLShortenerService {
     private final QRCodeService qrService;
     private final KeyStore keyStore;
     private final CacheManager cacheManager;
+    private final BusinessMetrics businessMetrics;
 
     public URLShortenerService(AppProperties appProperties, WebsiteUrlRepository repository,
                                ClickIngestionService clickIngestionService, UrlLookupService urlLookupService,
-                               KeyStore keyStore, QRCodeService qrService, CacheManager cacheManager) {
+                               KeyStore keyStore, QRCodeService qrService, CacheManager cacheManager,
+                               BusinessMetrics businessMetrics) {
         this.appProperties = appProperties;
         this.repository = repository;
         this.clickIngestionService = clickIngestionService;
@@ -46,15 +53,15 @@ public class URLShortenerService {
         this.keyStore = keyStore;
         this.qrService = qrService;
         this.cacheManager = cacheManager;
+        this.businessMetrics = businessMetrics;
     }
 
     public CreateResponse createShortLink(String originalUrl, UUID userId) {
         validateUrl(originalUrl);
 
         String shortKey = null;
-        boolean saved = false;
 
-        while (!saved) {
+        for (int attempt = 1; attempt <= MAX_SHORTKEY_ATTEMPTS; attempt++) {
             String candidate = ShortKeyGenerator.generateShortKey();
 
             if (keyStore.contains(candidate)) continue;
@@ -63,16 +70,25 @@ public class URLShortenerService {
             try {
                 repository.saveAndFlush(new WebsiteUrl(originalUrl, candidate, userId));
                 shortKey = candidate;
-                saved = true;
+                break;
             } catch (DataIntegrityViolationException e) {
                 keyStore.removeKey(candidate);
-                log.debug("Short-key collision on '{}', retrying.", candidate);
+                log.debug("Short-key collision on '{}' (attempt {}/{}), retrying.",
+                        candidate, attempt, MAX_SHORTKEY_ATTEMPTS);
             } catch (Exception e) {
                 keyStore.removeKey(candidate);
                 log.error("Error while saving short-key: {}", e.getMessage());
                 throw e;
             }
         }
+
+        if (shortKey == null) {
+            log.error("Could not generate a unique short-key after {} attempts", MAX_SHORTKEY_ATTEMPTS);
+            throw new ShortKeyGenerationException("Could not generate a unique short key, please retry");
+        }
+
+        businessMetrics.recordLinkCreated();
+
         String shortUrl = appProperties.getBaseUrl() + "/" + shortKey;
         byte[] qrCode = null;
         try {
@@ -85,6 +101,10 @@ public class URLShortenerService {
     }
 
     private void validateUrl(String originalUrl) {
+        if (originalUrl != null && originalUrl.length() > MAX_URL_LENGTH) {
+            throw new IllegalArgumentException("URL must be at most " + MAX_URL_LENGTH + " characters");
+        }
+
         URI uri;
         try {
             uri = new URI(originalUrl);
@@ -119,6 +139,7 @@ public class URLShortenerService {
             clickIngestionService.enqueueClick(resolved.linkId(), ip, userAgent, secChUaMobile);
         }
 
+        businessMetrics.recordRedirectServed();
         return resolved.originalUrl();
     }
 
@@ -139,37 +160,34 @@ public class URLShortenerService {
     }
 
     public void deleteLink(String shortKey, UUID userId) {
-        int deletedRows = repository.deleteByShortKeyAndUserId(shortKey, userId);
+        UUID linkId = repository.findLinkIdByShortKeyAndUserId(shortKey, userId)
+                .orElseThrow(() -> new ShortKeyNotFoundException("Link not found or access denied"));
 
-        if (deletedRows > 0) {
-            keyStore.removeKey(shortKey);
+        repository.deleteByShortKeyAndUserId(shortKey, userId);
+        keyStore.removeKey(shortKey);
 
-            Cache urlCache = cacheManager.getCache("urlCache");
-            if (urlCache != null) urlCache.evict(shortKey);
+        Cache urlCache = cacheManager.getCache("urlCache");
+        if (urlCache != null) urlCache.evict(shortKey);
 
-            Cache linkSummaryCache = cacheManager.getCache("linkSummaryCache");
-            if (linkSummaryCache != null) linkSummaryCache.evict(shortKey);
+        Cache linkSummaryCache = cacheManager.getCache("linkSummaryCache");
+        if (linkSummaryCache != null) linkSummaryCache.evict(linkId);
 
-            // Timeline cache keys are "<shortKey>_<range>_<gran>_<tz>". Evict only
-            // entries for this link, not every user's cache.
-            evictTimelineForShortKey(shortKey);
+        // Timeline cache keys are "<linkId>_<range>_<gran>_<tz>". Evict only
+        // entries for this link, not every user's cache.
+        evictTimelineForLinkId(linkId);
 
-            Cache ownershipCache = cacheManager.getCache("ownershipCache");
-            if (ownershipCache != null) {
-                ownershipCache.evict(shortKey + "_" + userId);
-            }
-        }
-        else {
-            throw new ShortKeyNotFoundException("Link not found or access denied");
+        Cache ownershipCache = cacheManager.getCache("ownershipCache");
+        if (ownershipCache != null) {
+            ownershipCache.evict(shortKey + "_" + userId);
         }
     }
 
-    private void evictTimelineForShortKey(String shortKey) {
+    private void evictTimelineForLinkId(UUID linkId) {
         Cache timelineCache = cacheManager.getCache("dashboardTimelineCache");
         if (timelineCache == null) return;
         Object nativeCache = timelineCache.getNativeCache();
         if (nativeCache instanceof com.github.benmanes.caffeine.cache.Cache<?, ?> caffeine) {
-            String prefix = shortKey + "_";
+            String prefix = linkId + "_";
             caffeine.asMap().keySet().removeIf(k -> k instanceof String s && s.startsWith(prefix));
         }
     }
