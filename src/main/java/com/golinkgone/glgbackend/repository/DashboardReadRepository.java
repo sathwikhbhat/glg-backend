@@ -12,11 +12,9 @@ import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -216,14 +214,6 @@ public class DashboardReadRepository {
                         rs.getString("country_code"),
                         rs.getLong("total_clicks"),
                         rs.getLong("new_visitors")));
-    }
-
-    public Optional<UUID> findLinkIdByShortKey(String shortKey) {
-        return jdbc.query(
-                "SELECT link_id FROM website_url WHERE short_key = :shortKey",
-                new MapSqlParameterSource("shortKey", shortKey),
-                rs -> rs.next() ? Optional.of((UUID) rs.getObject("link_id", UUID.class)) : Optional.empty()
-        );
     }
 
     public record LifetimeTotals(long totalClicks, long newVisitors) {}

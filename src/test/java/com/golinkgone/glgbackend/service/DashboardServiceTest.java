@@ -31,7 +31,6 @@ import static org.mockito.Mockito.when;
 class DashboardServiceTest {
 
     private static final UUID LINK_ID = UUID.randomUUID();
-    private static final String SHORT_KEY = "abc123";
 
     @Mock DashboardReadRepository readRepository;
 
@@ -52,7 +51,7 @@ class DashboardServiceTest {
         when(readRepository.fetchTopCities(eq(LINK_ID), eq(15))).thenReturn(List.of());
         when(readRepository.fetchDeviceBreakdown(LINK_ID)).thenReturn(List.of());
 
-        DashboardResponse resp = service().getDashboard(SHORT_KEY, LINK_ID, "24h", "hour", "Asia/Kolkata");
+        DashboardResponse resp = service().getDashboard(LINK_ID, "24h", "hour", "Asia/Kolkata");
 
         assertThat(resp.totalClicks()).isEqualTo(10);
         assertThat(resp.newVisitors()).isEqualTo(4);
@@ -72,7 +71,7 @@ class DashboardServiceTest {
         when(readRepository.fetchTopCities(eq(LINK_ID), eq(15))).thenReturn(List.of());
         when(readRepository.fetchDeviceBreakdown(LINK_ID)).thenReturn(List.of());
 
-        service().getDashboard(SHORT_KEY, LINK_ID, "all", "week", "UTC");
+        service().getDashboard(LINK_ID, "all", "week", "UTC");
 
         verify(readRepository).fetchMonthlyTimeline(LINK_ID);
         verify(readRepository, never()).fetchLogTimeline(any(), any(), any(), any(), any());
@@ -87,7 +86,7 @@ class DashboardServiceTest {
         when(readRepository.fetchTopCities(eq(LINK_ID), eq(15))).thenReturn(List.of());
         when(readRepository.fetchDeviceBreakdown(LINK_ID)).thenReturn(List.of());
 
-        service().getDashboard(SHORT_KEY, LINK_ID, "7d", "day", "UTC");
+        service().getDashboard(LINK_ID, "7d", "day", "UTC");
 
         ArgumentCaptor<OffsetDateTime> from = ArgumentCaptor.forClass(OffsetDateTime.class);
         ArgumentCaptor<OffsetDateTime> to = ArgumentCaptor.forClass(OffsetDateTime.class);
@@ -103,7 +102,7 @@ class DashboardServiceTest {
         when(readRepository.fetchTopCities(eq(LINK_ID), eq(15))).thenReturn(List.of());
         when(readRepository.fetchDeviceBreakdown(LINK_ID)).thenReturn(List.of());
 
-        LinkSummary summary = service().getLinkSummary(SHORT_KEY, LINK_ID);
+        LinkSummary summary = service().getLinkSummary(LINK_ID);
 
         assertThat(summary.lifetimeTotals().totalClicks()).isEqualTo(7);
         assertThat(summary.lifetimeTotals().newVisitors()).isEqualTo(3);
@@ -117,7 +116,7 @@ class DashboardServiceTest {
         when(readRepository.fetchLogTimeline(eq(LINK_ID), any(), any(), eq("hour"), eq("UTC")))
                 .thenReturn(List.of());
 
-        service().getTimeline(SHORT_KEY, LINK_ID, "24h", "hour", "UTC");
+        service().getTimeline(LINK_ID,"24h", "hour", "UTC");
 
         verify(readRepository, never()).fetchLifetimeTotals(any());
         verify(readRepository, never()).fetchTopCountries(any(), anyInt());
@@ -127,21 +126,21 @@ class DashboardServiceTest {
 
     @Test
     void getDashboard_unsupportedTimeRange_throwsIllegalArgument() {
-        assertThatThrownBy(() -> service().getDashboard(SHORT_KEY, LINK_ID, "2h", "day", "UTC"))
+        assertThatThrownBy(() -> service().getDashboard(LINK_ID, "2h", "day", "UTC"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported timeRange");
     }
 
     @Test
     void getDashboard_unsupportedGranularity_throwsIllegalArgument() {
-        assertThatThrownBy(() -> service().getDashboard(SHORT_KEY, LINK_ID, "24h", "minute", "UTC"))
+        assertThatThrownBy(() -> service().getDashboard(LINK_ID, "24h", "minute", "UTC"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported granularity");
     }
 
     @Test
     void getDashboard_invalidTz_throwsIllegalArgument() {
-        assertThatThrownBy(() -> service().getDashboard(SHORT_KEY, LINK_ID, "24h", "hour", "; DROP TABLE--"))
+        assertThatThrownBy(() -> service().getDashboard(LINK_ID, "24h", "hour", "; DROP TABLE--"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Invalid timezone");
     }
@@ -155,7 +154,7 @@ class DashboardServiceTest {
         when(readRepository.fetchTopCities(eq(LINK_ID), eq(15))).thenReturn(List.of());
         when(readRepository.fetchDeviceBreakdown(LINK_ID)).thenReturn(List.of());
 
-        service().getDashboard(SHORT_KEY, LINK_ID, "24H", "hour", "UTC");
+        service().getDashboard(LINK_ID, "24H", "hour", "UTC");
 
         verify(readRepository).fetchLogTimeline(eq(LINK_ID), any(), any(), eq("hour"), eq("UTC"));
     }
@@ -169,7 +168,7 @@ class DashboardServiceTest {
         when(readRepository.fetchTopCities(eq(LINK_ID), eq(15))).thenReturn(List.of());
         when(readRepository.fetchDeviceBreakdown(LINK_ID)).thenReturn(List.of());
 
-        service().getDashboard(SHORT_KEY, LINK_ID, "7d", null, null);
+        service().getDashboard(LINK_ID, "7d", null, null);
 
         verify(readRepository).fetchLogTimeline(eq(LINK_ID), any(), any(), eq("day"), eq("UTC"));
     }

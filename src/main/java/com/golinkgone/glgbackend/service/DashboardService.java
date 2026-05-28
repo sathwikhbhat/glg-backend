@@ -53,17 +53,17 @@ public class DashboardService {
         this.dashboardReadExecutor = dashboardReadExecutor;
     }
 
-    public DashboardResponse getDashboard(String shortKey, UUID linkId,
+    public DashboardResponse getDashboard(UUID linkId,
                                           String timeRange, String granularity, String tz) {
         String normalizedRange = normalizeTimeRange(timeRange);
         String normalizedGranularity = normalizeGranularity(granularity);
         String normalizedTz = normalizeTz(tz);
 
         CompletableFuture<LinkSummary> summaryF = CompletableFuture.supplyAsync(
-                () -> self.getLinkSummary(shortKey, linkId), dashboardReadExecutor);
+                () -> self.getLinkSummary(linkId), dashboardReadExecutor);
 
         CompletableFuture<List<ClickStats>> timelineF = CompletableFuture.supplyAsync(
-                () -> self.getTimeline(shortKey, linkId,
+                () -> self.getTimeline(linkId,
                         normalizedRange, normalizedGranularity, normalizedTz),
                 dashboardReadExecutor);
 
@@ -82,8 +82,8 @@ public class DashboardService {
         );
     }
 
-    @Cacheable(value = "linkSummaryCache", key = "#shortKey", sync = true)
-    public LinkSummary getLinkSummary(String shortKey, UUID linkId) {
+    @Cacheable(value = "linkSummaryCache", key = "#linkId", sync = true)
+    public LinkSummary getLinkSummary(UUID linkId) {
         log.debug("linkSummaryCache miss – linkId={}", linkId);
 
         CompletableFuture<LifetimeTotals> totalsF = CompletableFuture.supplyAsync(
@@ -101,9 +101,9 @@ public class DashboardService {
     }
 
     @Cacheable(value = "dashboardTimelineCache",
-            key = "#shortKey + '_' + #timeRange + '_' + #granularity + '_' + #tz",
+            key = "#linkId + '_' + #timeRange + '_' + #granularity + '_' + #tz",
             sync = true)
-    public List<ClickStats> getTimeline(String shortKey, UUID linkId,
+    public List<ClickStats> getTimeline(UUID linkId,
                                         String timeRange, String granularity, String tz) {
         log.debug("dashboardTimelineCache miss – linkId={} timeRange={} granularity={} tz={}",
                 linkId, timeRange, granularity, tz);

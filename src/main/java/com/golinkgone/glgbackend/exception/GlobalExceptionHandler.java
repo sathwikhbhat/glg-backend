@@ -22,6 +22,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.NOT_FOUND, "The requested link does not exist");
     }
 
+    @ExceptionHandler(ShortKeyGenerationException.class)
+    public ResponseEntity<ApiError> handleShortKeyGeneration(ShortKeyGenerationException ex) {
+        log.error("Short-key generation failed: {}", ex.getMessage());
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "Could not generate a short link, please retry");
+    }
+
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
@@ -60,9 +66,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleUnexpected(Exception ex) {
         log.error("Unhandled exception [{}]: {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
         Throwable cause = ex.getCause();
-        while (cause != null) {
+        int depth = 0;
+        while (cause != null && cause != cause.getCause() && depth < 20) {
             log.error("  caused by [{}]: {}", cause.getClass().getName(), cause.getMessage());
             cause = cause.getCause();
+            depth++;
         }
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
     }
