@@ -2,9 +2,8 @@ app:
   base-url: https://tryglg.ink
   allowed-origins: https://www.golinkgone.com,https://golinkgone.com
   rate-limit:
-    create:
-      capacity: ${RATE_LIMIT_CREATE_CAPACITY:10}
-      refill-per-minute: ${RATE_LIMIT_CREATE_REFILL_PER_MINUTE:10}
+    capacity: ${RATE_LIMIT_CAPACITY:100}
+    refill-per-minute: ${RATE_LIMIT_REFILL_PER_MINUTE:100}
 
 spring:
   datasource:

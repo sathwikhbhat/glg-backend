@@ -17,9 +17,8 @@ public class RateLimiter {
     private final long refillPerMinute;
 
     public RateLimiter(
-            @Value("${app.rate-limit.create.capacity:10}") long capacity,
-            @Value("${app.rate-limit.create.refill-per-minute:10}") long refillPerMinute) {
-
+            @Value("${app.rate-limit.capacity:100}") long capacity,
+            @Value("${app.rate-limit.refill-per-minute:100}") long refillPerMinute) {
         this.capacity = capacity;
         this.refillPerMinute = refillPerMinute;
         this.buckets = Caffeine.newBuilder()

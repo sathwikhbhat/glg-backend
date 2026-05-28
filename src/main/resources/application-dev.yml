@@ -2,9 +2,8 @@ app:
   base-url: ${BASE_URL:http://localhost:8080}
   allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
   rate-limit:
-    create:
-      capacity: 100
-      refill-per-minute: 100
+    capacity: 100
+    refill-per-minute: 100
 
 spring:
   datasource:
