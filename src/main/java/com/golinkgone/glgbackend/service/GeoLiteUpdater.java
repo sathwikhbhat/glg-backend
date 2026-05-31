@@ -5,6 +5,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -39,6 +40,9 @@ public class GeoLiteUpdater {
     @Value("${maxmind.edition-id:GeoLite2-City}")
     private String editionId;
 
+    @Value("${maxmind.db-path}")
+    private Resource dbResource;
+
     public GeoLiteUpdater(GeoIPService geoIPService) {
         this.geoIPService = geoIPService;
     }
@@ -56,12 +60,18 @@ public class GeoLiteUpdater {
             log.info("Starting GeoLite2 update for edition {}", editionId);
             archive = download();
             mmdb = extractMmdb(archive);
-            geoIPService.reload(mmdb.toFile());
+            if (dbResource.isFile()) {
+                Files.copy(mmdb, dbResource.getFile().toPath(), StandardCopyOption.REPLACE_EXISTING);
+                geoIPService.reload(dbResource.getFile());
+            } else {
+                geoIPService.reload(mmdb.toFile());
+            }
             log.info("GeoLite2 database updated");
         } catch (Exception e) {
             log.error("GeoLite2 update failed; existing database remains active", e);
         } finally {
             deleteQuietly(archive);
+            deleteQuietly(mmdb);
         }
     }
 

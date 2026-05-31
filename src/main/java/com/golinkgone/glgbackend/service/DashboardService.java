@@ -85,19 +85,11 @@ public class DashboardService {
     @Cacheable(value = "linkSummaryCache", key = "#linkId", sync = true)
     public LinkSummary getLinkSummary(UUID linkId) {
         log.debug("linkSummaryCache miss – linkId={}", linkId);
-
-        CompletableFuture<LifetimeTotals> totalsF = CompletableFuture.supplyAsync(
-                () -> readRepository.fetchLifetimeTotals(linkId), dashboardReadExecutor);
-        CompletableFuture<List<CountryStats>> countriesF = CompletableFuture.supplyAsync(
-                () -> readRepository.fetchTopCountries(linkId, TOP_COUNTRIES_LIMIT), dashboardReadExecutor);
-        CompletableFuture<List<CityStats>> citiesF = CompletableFuture.supplyAsync(
-                () -> readRepository.fetchTopCities(linkId, TOP_CITIES_LIMIT), dashboardReadExecutor);
-        CompletableFuture<List<DeviceStats>> devicesF = CompletableFuture.supplyAsync(
-                () -> readRepository.fetchDeviceBreakdown(linkId), dashboardReadExecutor);
-
-        CompletableFuture.allOf(totalsF, countriesF, citiesF, devicesF).join();
-
-        return new LinkSummary(totalsF.join(), countriesF.join(), citiesF.join(), devicesF.join());
+        return new LinkSummary(
+                readRepository.fetchLifetimeTotals(linkId),
+                readRepository.fetchTopCountries(linkId, TOP_COUNTRIES_LIMIT),
+                readRepository.fetchTopCities(linkId, TOP_CITIES_LIMIT),
+                readRepository.fetchDeviceBreakdown(linkId));
     }
 
     @Cacheable(value = "dashboardTimelineCache",
