@@ -1,10 +1,7 @@
 package com.golinkgone.glgbackend.service;
 
-import com.golinkgone.glgbackend.entity.CityStats;
 import com.golinkgone.glgbackend.entity.ClickStats;
-import com.golinkgone.glgbackend.entity.CountryStats;
 import com.golinkgone.glgbackend.entity.DashboardResponse;
-import com.golinkgone.glgbackend.entity.DeviceStats;
 import com.golinkgone.glgbackend.entity.LinkSummary;
 import com.golinkgone.glgbackend.repository.DashboardReadRepository;
 import com.golinkgone.glgbackend.repository.DashboardReadRepository.LifetimeTotals;

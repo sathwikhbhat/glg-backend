@@ -14,7 +14,7 @@ spring:
     password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 20
+      maximum-pool-size: 15
       minimum-idle: 5
       idle-timeout: 30000
       connection-timeout: 20000
@@ -31,12 +31,6 @@ logging:
   level:
     root: INFO
     com.golinkgone.glgbackend: INFO
-  file:
-    name: /var/log/glg/app.log
-  logback:
-    rollingpolicy:
-      max-file-size: 50MB
-      max-history: 14
 
 supabase:
   project-url: ${PROJECT_URL}

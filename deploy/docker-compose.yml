@@ -1,0 +1,40 @@
+
+
+services:
+  backend:
+    image: ghcr.io/shreyasnandurkar/glg-backend:latest
+    restart: unless-stopped
+    mem_limit: 2560m
+    env_file: /opt/glg/glg.env
+    volumes:
+      - /opt/glg:/opt/glg
+    expose:
+      - "8080"
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "14"
+    networks:
+      - glg
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/glg/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/glg/certs:/etc/caddy/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - glg
+
+networks:
+  glg:
+
+volumes:
+  caddy_data:
+  caddy_config:
