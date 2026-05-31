@@ -1,8 +1,6 @@
-
-
 services:
   backend:
-    image: ghcr.io/shreyasnandurkar/glg-backend:latest
+    image: ghcr.io/go-link-gone/glg-backend:latest
     restart: unless-stopped
     mem_limit: 2560m
     env_file: /opt/glg/glg.env
