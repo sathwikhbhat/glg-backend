@@ -2,20 +2,16 @@ package com.golinkgone.glgbackend.entity;
 
 import com.github.f4b6a3.uuid.UuidCreator;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
         name = "website_url",
-        indexes = {
-                @Index(name = "idx_user_created", columnList = "user_id, created_at")
-        }
-)
+        indexes = {@Index(name = "idx_user_created", columnList = "user_id, created_at")})
 @Getter
 @NoArgsConstructor
 public class WebsiteUrl {

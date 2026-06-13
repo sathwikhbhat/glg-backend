@@ -1,28 +1,5 @@
 package com.golinkgone.glgbackend.service;
 
-import com.golinkgone.glgbackend.config.AppProperties;
-import com.golinkgone.glgbackend.config.KeyStore;
-import com.golinkgone.glgbackend.entity.CreateResponse;
-import com.golinkgone.glgbackend.entity.ResolvedLink;
-import com.golinkgone.glgbackend.entity.WebsiteUrl;
-import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
-import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
-import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
-import com.google.zxing.WriterException;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-import org.springframework.dao.DataIntegrityViolationException;
-
-import java.io.IOException;
-import java.util.Optional;
-import java.util.UUID;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -35,19 +12,57 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.golinkgone.glgbackend.config.AppProperties;
+import com.golinkgone.glgbackend.config.KeyStore;
+import com.golinkgone.glgbackend.entity.CreateResponse;
+import com.golinkgone.glgbackend.entity.ResolvedLink;
+import com.golinkgone.glgbackend.entity.WebsiteUrl;
+import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
+import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
+import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
+import com.google.zxing.WriterException;
+import java.io.IOException;
+import java.util.Optional;
+import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.dao.DataIntegrityViolationException;
+
 @ExtendWith(MockitoExtension.class)
 class URLShortenerServiceTest {
 
-    @Mock AppProperties appProperties;
-    @Mock WebsiteUrlRepository repository;
-    @Mock ClickIngestionService clickIngestionService;
-    @Mock UrlLookupService urlLookupService;
-    @Mock QRCodeService qrService;
-    @Mock KeyStore keyStore;
-    @Mock CacheManager cacheManager;
-    @Mock BusinessMetrics businessMetrics;
+    @Mock
+    AppProperties appProperties;
 
-    @InjectMocks URLShortenerService service;
+    @Mock
+    WebsiteUrlRepository repository;
+
+    @Mock
+    ClickIngestionService clickIngestionService;
+
+    @Mock
+    UrlLookupService urlLookupService;
+
+    @Mock
+    QRCodeService qrService;
+
+    @Mock
+    KeyStore keyStore;
+
+    @Mock
+    CacheManager cacheManager;
+
+    @Mock
+    BusinessMetrics businessMetrics;
+
+    @InjectMocks
+    URLShortenerService service;
 
     @BeforeEach
     void stubBaseUrl() {
@@ -77,7 +92,7 @@ class URLShortenerServiceTest {
 
     @Test
     void createShortLink_succeedsOnFirstAttempt() throws IOException, WriterException {
-        when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenReturn(new byte[]{1, 2, 3});
+        when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenReturn(new byte[] {1, 2, 3});
 
         CreateResponse response = service.createShortLink("https://example.com/page", UUID.randomUUID());
 
@@ -92,7 +107,8 @@ class URLShortenerServiceTest {
     void createShortLink_retriesOnCollision_thenSucceeds() throws Exception {
         doThrow(new DataIntegrityViolationException("duplicate"))
                 .doReturn(null)
-                .when(repository).saveAndFlush(any(WebsiteUrl.class));
+                .when(repository)
+                .saveAndFlush(any(WebsiteUrl.class));
         when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenReturn(new byte[0]);
 
         CreateResponse response = service.createShortLink("https://example.com", null);
@@ -114,8 +130,7 @@ class URLShortenerServiceTest {
 
     @Test
     void createShortLink_throwsAfterMaxCollisionAttempts() {
-        when(repository.saveAndFlush(any(WebsiteUrl.class)))
-                .thenThrow(new DataIntegrityViolationException("dup"));
+        when(repository.saveAndFlush(any(WebsiteUrl.class))).thenThrow(new DataIntegrityViolationException("dup"));
 
         assertThatThrownBy(() -> service.createShortLink("https://example.com", null))
                 .isInstanceOf(ShortKeyGenerationException.class);
@@ -198,8 +213,7 @@ class URLShortenerServiceTest {
         UUID userId = UUID.randomUUID();
         when(repository.findLinkIdByShortKeyAndUserId("abc123", userId)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.deleteLink("abc123", userId))
-                .isInstanceOf(ShortKeyNotFoundException.class);
+        assertThatThrownBy(() -> service.deleteLink("abc123", userId)).isInstanceOf(ShortKeyNotFoundException.class);
         verify(repository, never()).deleteByShortKeyAndUserId(any(), any());
         verify(keyStore, never()).removeKey(any());
     }

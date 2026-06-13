@@ -3,13 +3,12 @@ package com.golinkgone.glgbackend.service;
 import com.golinkgone.glgbackend.config.KeyStore;
 import com.golinkgone.glgbackend.entity.LinkRef;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
+import java.util.List;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -20,14 +19,17 @@ public class UserService {
     private final KeyStore keyStore;
     private final CacheManager cacheManager;
 
-    public UserService(SupabaseAdminClient supabaseAdminClient, WebsiteUrlRepository urlRepository,
-                       KeyStore keyStore, CacheManager cacheManager) {
+    public UserService(
+            SupabaseAdminClient supabaseAdminClient,
+            WebsiteUrlRepository urlRepository,
+            KeyStore keyStore,
+            CacheManager cacheManager) {
         this.supabaseAdminClient = supabaseAdminClient;
         this.urlRepository = urlRepository;
         this.keyStore = keyStore;
         this.cacheManager = cacheManager;
     }
-    
+
     public void deleteAccount(UUID userId) {
         List<LinkRef> userLinks = urlRepository.findAllLinkRefsByUserId(userId);
 

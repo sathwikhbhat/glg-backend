@@ -9,5 +9,4 @@ public class IdResolutionSystemApplication {
     public static void main(String[] args) {
         SpringApplication.run(IdResolutionSystemApplication.class, args);
     }
-
 }

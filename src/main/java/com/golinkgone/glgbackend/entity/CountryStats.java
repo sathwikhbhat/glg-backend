@@ -1,7 +1,3 @@
 package com.golinkgone.glgbackend.entity;
 
-public record CountryStats(
-        String country,
-        Long total,
-        Long newVisitors
-) {}
+public record CountryStats(String country, Long total, Long newVisitors) {}

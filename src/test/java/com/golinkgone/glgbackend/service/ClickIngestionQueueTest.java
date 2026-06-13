@@ -1,18 +1,27 @@
 package com.golinkgone.glgbackend.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.golinkgone.glgbackend.entity.ClickEventDTO;
 import com.golinkgone.glgbackend.entity.DeviceType;
-import org.junit.jupiter.api.Test;
-
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
 
 class ClickIngestionQueueTest {
+
+    private static ClickEventDTO sample() {
+        return new ClickEventDTO(
+                UUID.randomUUID(),
+                UUID.randomUUID(),
+                DeviceType.PHONE,
+                "IN",
+                "Bengaluru",
+                OffsetDateTime.now(ZoneOffset.UTC));
+    }
 
     @Test
     void drainTo_returnsClicksInInsertionOrder() {
@@ -38,15 +47,5 @@ class ClickIngestionQueueTest {
         }
         assertThat(q.offer(sample())).isFalse();
         assertThat(q.droppedTotal()).isEqualTo(1L);
-    }
-
-    private static ClickEventDTO sample() {
-        return new ClickEventDTO(
-                UUID.randomUUID(),
-                UUID.randomUUID(),
-                DeviceType.PHONE,
-                "IN",
-                "Bengaluru",
-                OffsetDateTime.now(ZoneOffset.UTC));
     }
 }

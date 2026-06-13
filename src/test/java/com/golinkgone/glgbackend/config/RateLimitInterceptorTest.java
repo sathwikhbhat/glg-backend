@@ -1,5 +1,9 @@
 package com.golinkgone.glgbackend.config;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
 import com.golinkgone.glgbackend.service.RateLimiter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,14 +15,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class RateLimitInterceptorTest {
 
-    @Mock RateLimiter rateLimiter;
+    @Mock
+    RateLimiter rateLimiter;
+
     RateLimitInterceptor interceptor;
 
     @BeforeEach

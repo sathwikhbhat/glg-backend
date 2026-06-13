@@ -8,5 +8,4 @@ public record DashboardResponse(
         List<ClickStats> totals,
         List<CountryStats> topCountries,
         List<CityStats> topCities,
-        List<DeviceStats> deviceBreakdown
-) {}
+        List<DeviceStats> deviceBreakdown) {}

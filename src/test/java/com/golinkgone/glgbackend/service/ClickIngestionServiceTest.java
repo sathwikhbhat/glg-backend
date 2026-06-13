@@ -1,8 +1,15 @@
 package com.golinkgone.glgbackend.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import com.golinkgone.glgbackend.entity.ClickEventDTO;
 import com.golinkgone.glgbackend.entity.DeviceType;
 import com.golinkgone.glgbackend.entity.GeoLocation;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -10,27 +17,26 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 @ExtendWith(MockitoExtension.class)
 class ClickIngestionServiceTest {
 
-    private static final String IPHONE_UA  = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15";
-    private static final String IPAD_UA    = "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148";
-    private static final String ANDROID_PHONE_UA  = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Mobile) AppleWebKit/537.36";
+    private static final String IPHONE_UA =
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15";
+    private static final String IPAD_UA =
+            "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148";
+    private static final String ANDROID_PHONE_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Mobile) AppleWebKit/537.36";
     private static final String ANDROID_TABLET_UA = "Mozilla/5.0 (Linux; Android 14; SM-X910) AppleWebKit/537.36";
     private static final String DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-    private static final String BOT_UA     = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
+    private static final String BOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)";
 
-    @Mock GeoIPService geoIPService;
-    @Mock ClickIngestionQueue queue;
-    @InjectMocks ClickIngestionService service;
+    @Mock
+    GeoIPService geoIPService;
+
+    @Mock
+    ClickIngestionQueue queue;
+
+    @InjectMocks
+    ClickIngestionService service;
 
     @Test
     void classifyDevice_clientHintMobileWins() {

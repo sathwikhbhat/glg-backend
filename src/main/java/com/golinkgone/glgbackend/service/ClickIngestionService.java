@@ -4,16 +4,15 @@ import com.golinkgone.glgbackend.entity.ClickEventDTO;
 import com.golinkgone.glgbackend.entity.DeviceType;
 import com.golinkgone.glgbackend.entity.GeoLocation;
 import com.google.common.hash.Hashing;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Slf4j
 @Service
@@ -44,13 +43,7 @@ public class ClickIngestionService {
             DeviceType device = classifyDevice(userAgent, secChUaMobile);
 
             ClickEventDTO dto = new ClickEventDTO(
-                    linkId,
-                    visitorHash,
-                    device,
-                    loc.countryCode(),
-                    loc.city(),
-                    OffsetDateTime.now(ZoneOffset.UTC)
-            );
+                    linkId, visitorHash, device, loc.countryCode(), loc.city(), OffsetDateTime.now(ZoneOffset.UTC));
             queue.offer(dto);
         } catch (Exception ex) {
             log.error("Failed to enqueue click for linkId={}", linkId, ex);
@@ -59,7 +52,8 @@ public class ClickIngestionService {
 
     private UUID computeVisitorHash(String rawIp, String userAgent) {
         String input = rawIp + "|" + (userAgent == null ? "" : userAgent);
-        byte[] digest = Hashing.murmur3_128().hashString(input, StandardCharsets.UTF_8).asBytes();
+        byte[] digest =
+                Hashing.murmur3_128().hashString(input, StandardCharsets.UTF_8).asBytes();
         ByteBuffer bb = ByteBuffer.wrap(digest);
         long msb = bb.getLong();
         long lsb = bb.getLong();

@@ -1,9 +1,9 @@
 package com.golinkgone.glgbackend.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import com.golinkgone.glgbackend.entity.GeoLocation;
 import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 class GeoIPServiceTest {
 

@@ -1,5 +1,13 @@
 package com.golinkgone.glgbackend.controller;
 
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import com.golinkgone.glgbackend.config.SecurityConfig;
 import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
 import com.golinkgone.glgbackend.service.*;
@@ -15,14 +23,6 @@ import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.not;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(URLController.class)
 @Import({SecurityConfig.class, JwtDecoderTestConfig.class})
@@ -70,49 +70,41 @@ public class URLControllerTest {
     @Test
     @DisplayName("POST /create rejects empty payload")
     void create_rejectsEmptyPayload() throws Exception {
-        mockMvc.perform(post("/create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+        mockMvc.perform(post("/create").contentType(MediaType.APPLICATION_JSON).content("{}"))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("POST /create rejects invalid URL")
     void create_rejectsInvalidUrl() throws Exception {
-        mockMvc.perform(post("/create")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"originalUrl":"not-a-url"}
-                                """))
+        mockMvc.perform(post("/create").contentType(MediaType.APPLICATION_JSON).content("""
+                        {"originalUrl":"not-a-url"}
+                        """))
                 .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("GET /my-links requires authentication")
     void myLinks_requiresAuthentication() throws Exception {
-        mockMvc.perform(get("/my-links"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/my-links")).andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("DELETE /account requires authentication")
     void deleteAccount_requiresAuthentication() throws Exception {
-        mockMvc.perform(delete("/account"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/account")).andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("GET /{shortKey}/dashboard requires authentication")
     void dashboard_requiresAuthentication() throws Exception {
-        mockMvc.perform(get("/abc123/dashboard"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/abc123/dashboard")).andExpect(status().isUnauthorized());
     }
 
     @Test
     @DisplayName("DELETE /{shortKey} requires authentication")
     void deleteLink_requiresAuthentication() throws Exception {
-        mockMvc.perform(delete("/abc123"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(delete("/abc123")).andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -132,10 +124,8 @@ public class URLControllerTest {
         when(urlShortenerService.redirectUrl(eq("abc123"), any(), any(), any(), anyBoolean()))
                 .thenThrow(new ShortKeyNotFoundException("abc123"));
 
-        mockMvc.perform(head("/abc123"))
-                .andExpect(status().is4xxClientError());
+        mockMvc.perform(head("/abc123")).andExpect(status().is4xxClientError());
     }
-
 }
 
 @TestConfiguration

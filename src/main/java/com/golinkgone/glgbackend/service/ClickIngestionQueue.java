@@ -1,16 +1,15 @@
 package com.golinkgone.glgbackend.service;
 
 import com.golinkgone.glgbackend.entity.ClickEventDTO;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 /**
- *Producers enqueue and a single scheduled consumer drains in batches.
+ * Producers enqueue and a single scheduled consumer drains in batches.
  */
 @Slf4j
 @Component

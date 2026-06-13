@@ -5,10 +5,6 @@ import com.golinkgone.glgbackend.repository.ClickAggregationRepository;
 import com.golinkgone.glgbackend.repository.ClickAggregationRepository.DeviceKey;
 import com.golinkgone.glgbackend.repository.ClickAggregationRepository.LocationKey;
 import com.golinkgone.glgbackend.repository.ClickAggregationRepository.MonthlyKey;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -20,6 +16,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * In-memory map/reduce + batch write of a drained click batch.
@@ -32,6 +31,14 @@ public class ClickAggregationWriter {
 
     public ClickAggregationWriter(ClickAggregationRepository repository) {
         this.repository = repository;
+    }
+
+    private static LocalDate bucketMonth(OffsetDateTime clickTime) {
+        return clickTime.toLocalDate().withDayOfMonth(1);
+    }
+
+    private static String deviceTypeName(ClickEventDTO c) {
+        return c.deviceType() != null ? c.deviceType().name() : "UNKNOWN";
     }
 
     @Transactional
@@ -48,7 +55,7 @@ public class ClickAggregationWriter {
             }
         }
 
-        //Batch INSERT ... ON CONFLICT DO NOTHING. int[] gives 1 = newly inserted, 0 = conflict.
+        // Batch INSERT ... ON CONFLICT DO NOTHING. int[] gives 1 = newly inserted, 0 = conflict.
         int[] results = repository.batchInsertUniqueVisitorsGlobal(uniqueBatch);
         Set<VisitorKey> globallyNewPairs = new HashSet<>();
         List<VisitorKey> keysInOrder = new ArrayList<>(pairPositions.keySet());
@@ -80,12 +87,16 @@ public class ClickAggregationWriter {
             long newDelta = newVisitor ? 1 : 0;
 
             linkGlobalInc.merge(c.linkId(), CountIncrement.of(1, newDelta), CountIncrement::plus);
-            monthlyInc.merge(new MonthlyKey(c.linkId(), bucketMonth(c.clickTime())),
-                    CountIncrement.of(1, newDelta), CountIncrement::plus);
-            deviceInc.merge(new DeviceKey(c.linkId(), deviceTypeName(c)),
-                    CountIncrement.of(1, newDelta), CountIncrement::plus);
-            locationInc.merge(new LocationKey(c.linkId(), c.countryCode(), c.cityName()),
-                    CountIncrement.of(1, newDelta), CountIncrement::plus);
+            monthlyInc.merge(
+                    new MonthlyKey(c.linkId(), bucketMonth(c.clickTime())),
+                    CountIncrement.of(1, newDelta),
+                    CountIncrement::plus);
+            deviceInc.merge(
+                    new DeviceKey(c.linkId(), deviceTypeName(c)), CountIncrement.of(1, newDelta), CountIncrement::plus);
+            locationInc.merge(
+                    new LocationKey(c.linkId(), c.countryCode(), c.cityName()),
+                    CountIncrement.of(1, newDelta),
+                    CountIncrement::plus);
 
             logRows.add(new LogRow(c.linkId(), c.clickTime(), c.visitorHash(), newVisitor));
         }
@@ -97,17 +108,14 @@ public class ClickAggregationWriter {
 
         repository.batchInsertUniqueVisitorsLog(logRows);
 
-        log.debug("Batched {} clicks → {} unique pairs ({} new); upserts: global=1, monthly={}, device={}, location={}",
-                clicks.size(), uniqueBatch.size(), globallyNewPairs.size(),
-                monthlyInc.size(), deviceInc.size(), locationInc.size());
-    }
-
-    private static LocalDate bucketMonth(OffsetDateTime clickTime) {
-        return clickTime.toLocalDate().withDayOfMonth(1);
-    }
-
-    private static String deviceTypeName(ClickEventDTO c) {
-        return c.deviceType() != null ? c.deviceType().name() : "UNKNOWN";
+        log.debug(
+                "Batched {} clicks → {} unique pairs ({} new); upserts: global=1, monthly={}, device={}, location={}",
+                clicks.size(),
+                uniqueBatch.size(),
+                globallyNewPairs.size(),
+                monthlyInc.size(),
+                deviceInc.size(),
+                locationInc.size());
     }
 
     private record VisitorKey(UUID linkId, UUID visitorHash) {}
@@ -117,10 +125,12 @@ public class ClickAggregationWriter {
     public record LogRow(UUID linkId, OffsetDateTime clickTime, UUID visitorHash, boolean isNewVisitor) {}
 
     public record CountIncrement(long totalClicks, long newVisitors) {
-        static CountIncrement of(long total, long newV) { return new CountIncrement(total, newV); }
+        static CountIncrement of(long total, long newV) {
+            return new CountIncrement(total, newV);
+        }
+
         CountIncrement plus(CountIncrement other) {
-            return new CountIncrement(this.totalClicks + other.totalClicks,
-                    this.newVisitors + other.newVisitors);
+            return new CountIncrement(this.totalClicks + other.totalClicks, this.newVisitors + other.newVisitors);
         }
     }
 }

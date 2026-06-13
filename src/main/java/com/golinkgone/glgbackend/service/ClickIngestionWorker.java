@@ -2,12 +2,11 @@ package com.golinkgone.glgbackend.service;
 
 import com.golinkgone.glgbackend.entity.ClickEventDTO;
 import jakarta.annotation.PreDestroy;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Drains the click queue every 3 seconds and hands the batch to the writer.
@@ -39,8 +38,10 @@ public class ClickIngestionWorker {
             writer.writeBatch(drained);
             long elapsedMs = (System.nanoTime() - start) / 1_000_000;
             if (elapsedMs > 1000) {
-                log.warn("Click batch write took {} ms for {} clicks — approaching the 3s flush interval",
-                        elapsedMs, drainedCount);
+                log.warn(
+                        "Click batch write took {} ms for {} clicks — approaching the 3s flush interval",
+                        elapsedMs,
+                        drainedCount);
             }
         } catch (Exception ex) {
             // Swallow so the scheduler keeps firing. A single bad batch must not stop the ingestion forever
@@ -48,8 +49,7 @@ public class ClickIngestionWorker {
         }
     }
 
-
-    //Final drain on JVM shutdown
+    // Final drain on JVM shutdown
     @PreDestroy
     public void flushOnShutdown() {
         int pending = queue.size();

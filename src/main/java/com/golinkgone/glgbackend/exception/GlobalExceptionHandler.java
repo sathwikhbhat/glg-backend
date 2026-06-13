@@ -1,16 +1,15 @@
 package com.golinkgone.glgbackend.exception;
 
 import com.google.zxing.WriterException;
+import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.security.access.AccessDeniedException;
-
-import java.time.Instant;
 
 @Slf4j
 @RestControllerAdvice
@@ -77,11 +76,6 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ApiError> buildError(HttpStatus status, String message) {
         return ResponseEntity.status(status)
-                .body(new ApiError(
-                        Instant.now(),
-                        status.value(),
-                        status.getReasonPhrase(),
-                        message
-                ));
+                .body(new ApiError(Instant.now(), status.value(), status.getReasonPhrase(), message));
     }
 }

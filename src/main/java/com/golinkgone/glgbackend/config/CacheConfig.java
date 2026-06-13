@@ -1,13 +1,12 @@
 package com.golinkgone.glgbackend.config;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
+import java.time.Duration;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.time.Duration;
 
 @Configuration
 @EnableCaching
@@ -15,13 +14,11 @@ public class CacheConfig {
 
     @Bean
     public CacheManager cacheManager() {
-        CaffeineCacheManager cacheManager = new CaffeineCacheManager(
-                "urlCache",
-                "linkSummaryCache",
-                "dashboardTimelineCache",
-                "ownershipCache");
+        CaffeineCacheManager cacheManager =
+                new CaffeineCacheManager("urlCache", "linkSummaryCache", "dashboardTimelineCache", "ownershipCache");
 
-        cacheManager.registerCustomCache("urlCache",
+        cacheManager.registerCustomCache(
+                "urlCache",
                 Caffeine.newBuilder()
                         .maximumSize(50_000)
                         .expireAfterWrite(Duration.ofHours(24))
@@ -29,7 +26,8 @@ public class CacheConfig {
                         .build());
 
         // Per-link aggregates that don't depend on timeRange/granularity/tz.
-        cacheManager.registerCustomCache("linkSummaryCache",
+        cacheManager.registerCustomCache(
+                "linkSummaryCache",
                 Caffeine.newBuilder()
                         .maximumSize(10_000)
                         .expireAfterWrite(Duration.ofMinutes(1))
@@ -37,14 +35,16 @@ public class CacheConfig {
                         .build());
 
         // Per-link timeline keyed by shortKey_timeRange_granularity_tz.
-        cacheManager.registerCustomCache("dashboardTimelineCache",
+        cacheManager.registerCustomCache(
+                "dashboardTimelineCache",
                 Caffeine.newBuilder()
                         .maximumSize(10_000)
                         .expireAfterWrite(Duration.ofMinutes(1))
                         .recordStats()
                         .build());
 
-        cacheManager.registerCustomCache("ownershipCache",
+        cacheManager.registerCustomCache(
+                "ownershipCache",
                 Caffeine.newBuilder()
                         .maximumSize(50_000)
                         .expireAfterWrite(Duration.ofHours(5))

@@ -5,13 +5,6 @@ import com.golinkgone.glgbackend.entity.DashboardResponse;
 import com.golinkgone.glgbackend.entity.LinkSummary;
 import com.golinkgone.glgbackend.repository.DashboardReadRepository;
 import com.golinkgone.glgbackend.repository.DashboardReadRepository.LifetimeTotals;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
-
 import java.time.DateTimeException;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -22,6 +15,12 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
@@ -44,72 +43,11 @@ public class DashboardService {
     @Lazy
     private DashboardService self;
 
-    public DashboardService(DashboardReadRepository readRepository,
-                            @Qualifier("dashboardReadExecutor") Executor dashboardReadExecutor) {
+    public DashboardService(
+            DashboardReadRepository readRepository,
+            @Qualifier("dashboardReadExecutor") Executor dashboardReadExecutor) {
         this.readRepository = readRepository;
         this.dashboardReadExecutor = dashboardReadExecutor;
-    }
-
-    public DashboardResponse getDashboard(UUID linkId,
-                                          String timeRange, String granularity, String tz) {
-        String normalizedRange = normalizeTimeRange(timeRange);
-        String normalizedGranularity = normalizeGranularity(granularity);
-        String normalizedTz = normalizeTz(tz);
-
-        CompletableFuture<LinkSummary> summaryF = CompletableFuture.supplyAsync(
-                () -> self.getLinkSummary(linkId), dashboardReadExecutor);
-
-        CompletableFuture<List<ClickStats>> timelineF = CompletableFuture.supplyAsync(
-                () -> self.getTimeline(linkId,
-                        normalizedRange, normalizedGranularity, normalizedTz),
-                dashboardReadExecutor);
-
-        CompletableFuture.allOf(summaryF, timelineF).join();
-
-        LinkSummary summary = summaryF.join();
-        LifetimeTotals lifetime = summary.lifetimeTotals();
-
-        return new DashboardResponse(
-                lifetime.totalClicks(),
-                lifetime.newVisitors(),
-                timelineF.join(),
-                summary.topCountries(),
-                summary.topCities(),
-                summary.deviceBreakdown()
-        );
-    }
-
-    @Cacheable(value = "linkSummaryCache", key = "#linkId", sync = true)
-    public LinkSummary getLinkSummary(UUID linkId) {
-        log.debug("linkSummaryCache miss – linkId={}", linkId);
-        return new LinkSummary(
-                readRepository.fetchLifetimeTotals(linkId),
-                readRepository.fetchTopCountries(linkId, TOP_COUNTRIES_LIMIT),
-                readRepository.fetchTopCities(linkId, TOP_CITIES_LIMIT),
-                readRepository.fetchDeviceBreakdown(linkId));
-    }
-
-    @Cacheable(value = "dashboardTimelineCache",
-            key = "#linkId + '_' + #timeRange + '_' + #granularity + '_' + #tz",
-            sync = true)
-    public List<ClickStats> getTimeline(UUID linkId,
-                                        String timeRange, String granularity, String tz) {
-        log.debug("dashboardTimelineCache miss – linkId={} timeRange={} granularity={} tz={}",
-                linkId, timeRange, granularity, tz);
-        return "all".equals(timeRange)
-                ? readRepository.fetchMonthlyTimeline(linkId)
-                : fetchDynamicTimeline(linkId, timeRange, granularity, tz);
-    }
-
-    private List<ClickStats> fetchDynamicTimeline(UUID linkId, String range, String granularity, String tz) {
-        OffsetDateTime to = OffsetDateTime.now(ZoneOffset.UTC);
-        OffsetDateTime from = switch (range) {
-            case "24h" -> to.minusHours(24);
-            case "7d"  -> to.minusDays(7);
-            case "30d" -> to.minusDays(30);
-            default -> throw new IllegalArgumentException("Unexpected range: " + range);
-        };
-        return readRepository.fetchLogTimeline(linkId, from, to, granularity, tz);
     }
 
     private static String normalizeTimeRange(String timeRange) {
@@ -143,5 +81,69 @@ public class DashboardService {
             throw new IllegalArgumentException("Invalid timezone: " + tz);
         }
         return tz;
+    }
+
+    public DashboardResponse getDashboard(UUID linkId, String timeRange, String granularity, String tz) {
+        String normalizedRange = normalizeTimeRange(timeRange);
+        String normalizedGranularity = normalizeGranularity(granularity);
+        String normalizedTz = normalizeTz(tz);
+
+        CompletableFuture<LinkSummary> summaryF =
+                CompletableFuture.supplyAsync(() -> self.getLinkSummary(linkId), dashboardReadExecutor);
+
+        CompletableFuture<List<ClickStats>> timelineF = CompletableFuture.supplyAsync(
+                () -> self.getTimeline(linkId, normalizedRange, normalizedGranularity, normalizedTz),
+                dashboardReadExecutor);
+
+        CompletableFuture.allOf(summaryF, timelineF).join();
+
+        LinkSummary summary = summaryF.join();
+        LifetimeTotals lifetime = summary.lifetimeTotals();
+
+        return new DashboardResponse(
+                lifetime.totalClicks(),
+                lifetime.newVisitors(),
+                timelineF.join(),
+                summary.topCountries(),
+                summary.topCities(),
+                summary.deviceBreakdown());
+    }
+
+    @Cacheable(value = "linkSummaryCache", key = "#linkId", sync = true)
+    public LinkSummary getLinkSummary(UUID linkId) {
+        log.debug("linkSummaryCache miss – linkId={}", linkId);
+        return new LinkSummary(
+                readRepository.fetchLifetimeTotals(linkId),
+                readRepository.fetchTopCountries(linkId, TOP_COUNTRIES_LIMIT),
+                readRepository.fetchTopCities(linkId, TOP_CITIES_LIMIT),
+                readRepository.fetchDeviceBreakdown(linkId));
+    }
+
+    @Cacheable(
+            value = "dashboardTimelineCache",
+            key = "#linkId + '_' + #timeRange + '_' + #granularity + '_' + #tz",
+            sync = true)
+    public List<ClickStats> getTimeline(UUID linkId, String timeRange, String granularity, String tz) {
+        log.debug(
+                "dashboardTimelineCache miss – linkId={} timeRange={} granularity={} tz={}",
+                linkId,
+                timeRange,
+                granularity,
+                tz);
+        return "all".equals(timeRange)
+                ? readRepository.fetchMonthlyTimeline(linkId)
+                : fetchDynamicTimeline(linkId, timeRange, granularity, tz);
+    }
+
+    private List<ClickStats> fetchDynamicTimeline(UUID linkId, String range, String granularity, String tz) {
+        OffsetDateTime to = OffsetDateTime.now(ZoneOffset.UTC);
+        OffsetDateTime from =
+                switch (range) {
+                    case "24h" -> to.minusHours(24);
+                    case "7d" -> to.minusDays(7);
+                    case "30d" -> to.minusDays(30);
+                    default -> throw new IllegalArgumentException("Unexpected range: " + range);
+                };
+        return readRepository.fetchLogTimeline(linkId, from, to, granularity, tz);
     }
 }

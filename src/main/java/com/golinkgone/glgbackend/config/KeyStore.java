@@ -2,12 +2,11 @@ package com.golinkgone.glgbackend.config;
 
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
 import jakarta.annotation.PostConstruct;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 @Slf4j
 @Component

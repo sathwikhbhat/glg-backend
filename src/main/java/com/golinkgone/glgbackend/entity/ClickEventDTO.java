@@ -9,5 +9,4 @@ public record ClickEventDTO(
         DeviceType deviceType,
         String countryCode,
         String cityName,
-        OffsetDateTime clickTime
-) {}
+        OffsetDateTime clickTime) {}

@@ -1,5 +1,11 @@
 package com.golinkgone.glgbackend.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+
 import com.golinkgone.glgbackend.entity.ClickEventDTO;
 import com.golinkgone.glgbackend.entity.DeviceType;
 import com.golinkgone.glgbackend.repository.ClickAggregationRepository;
@@ -9,25 +15,18 @@ import com.golinkgone.glgbackend.repository.ClickAggregationRepository.MonthlyKe
 import com.golinkgone.glgbackend.service.ClickAggregationWriter.CountIncrement;
 import com.golinkgone.glgbackend.service.ClickAggregationWriter.LogRow;
 import com.golinkgone.glgbackend.service.ClickAggregationWriter.UniqueVisitorRow;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class ClickAggregationWriterTest {
@@ -37,8 +36,16 @@ class ClickAggregationWriterTest {
     private static final UUID VISITOR_X = UUID.randomUUID();
     private static final UUID VISITOR_Y = UUID.randomUUID();
 
-    @Mock ClickAggregationRepository repository;
-    @InjectMocks ClickAggregationWriter writer;
+    @Mock
+    ClickAggregationRepository repository;
+
+    @InjectMocks
+    ClickAggregationWriter writer;
+
+    private static ClickEventDTO click(
+            UUID linkId, UUID visitor, DeviceType device, String country, String city, OffsetDateTime ts) {
+        return new ClickEventDTO(linkId, visitor, device, country, city, ts);
+    }
 
     @Test
     void emptyBatch_doesNothing() {
@@ -51,15 +58,13 @@ class ClickAggregationWriterTest {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         List<ClickEventDTO> clicks = List.of(
                 click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now),
-                click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now.plusSeconds(1))
-        );
+                click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now.plusSeconds(1)));
         // Only one unique (link, hash) pair → batch of size 1; DB reports 1 = new.
-        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[]{1});
+        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[] {1});
 
         writer.writeBatch(clicks);
 
-        ArgumentCaptor<Map<UUID, CountIncrement>> globalInc =
-                ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<UUID, CountIncrement>> globalInc = ArgumentCaptor.forClass(Map.class);
         verify(repository).batchUpsertLinkStatsGlobal(globalInc.capture());
         CountIncrement inc = globalInc.getValue().get(LINK_A);
         assertThat(inc.totalClicks()).isEqualTo(2);
@@ -75,10 +80,8 @@ class ClickAggregationWriterTest {
     @Test
     void existingVisitor_dbReports0_isNotCounted() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
-        List<ClickEventDTO> clicks = List.of(
-                click(LINK_A, VISITOR_X, DeviceType.DESKTOP, "US", "NYC", now)
-        );
-        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[]{0});
+        List<ClickEventDTO> clicks = List.of(click(LINK_A, VISITOR_X, DeviceType.DESKTOP, "US", "NYC", now));
+        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[] {0});
 
         writer.writeBatch(clicks);
 
@@ -95,10 +98,9 @@ class ClickAggregationWriterTest {
     void newVisitorAttribution_pinnedToFirstDimensions() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         List<ClickEventDTO> clicks = List.of(
-                click(LINK_A, VISITOR_X, DeviceType.PHONE,   "IN", "Bengaluru", now),
-                click(LINK_A, VISITOR_X, DeviceType.DESKTOP, "US", "NYC",       now.plusMinutes(5))
-        );
-        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[]{1});
+                click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now),
+                click(LINK_A, VISITOR_X, DeviceType.DESKTOP, "US", "NYC", now.plusMinutes(5)));
+        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[] {1});
 
         writer.writeBatch(clicks);
 
@@ -113,7 +115,8 @@ class ClickAggregationWriterTest {
         ArgumentCaptor<Map<LocationKey, CountIncrement>> locCap = ArgumentCaptor.forClass(Map.class);
         verify(repository).batchUpsertLinkLocationStats(locCap.capture());
         Map<LocationKey, CountIncrement> locs = locCap.getValue();
-        assertThat(locs.get(new LocationKey(LINK_A, "IN", "Bengaluru")).newVisitors()).isEqualTo(1);
+        assertThat(locs.get(new LocationKey(LINK_A, "IN", "Bengaluru")).newVisitors())
+                .isEqualTo(1);
         assertThat(locs.get(new LocationKey(LINK_A, "US", "NYC")).newVisitors()).isZero();
     }
 
@@ -124,10 +127,9 @@ class ClickAggregationWriterTest {
                 click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now),
                 click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now.plusSeconds(1)),
                 click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now.plusSeconds(2)),
-                click(LINK_B, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now.plusSeconds(3))
-        );
+                click(LINK_B, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now.plusSeconds(3)));
         // Expect 2 unique (link, visitor) pairs sent to dedup table.
-        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[]{1, 1});
+        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[] {1, 1});
 
         writer.writeBatch(clicks);
 
@@ -139,7 +141,7 @@ class ClickAggregationWriterTest {
     @Test
     void monthlyBucket_truncatesToFirstOfMonth() {
         OffsetDateTime when = OffsetDateTime.of(2026, 3, 15, 12, 34, 56, 0, ZoneOffset.UTC);
-        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[]{1});
+        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[] {1});
 
         writer.writeBatch(List.of(click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", when)));
 
@@ -153,10 +155,9 @@ class ClickAggregationWriterTest {
     void differentVisitors_eachCreditedAsNew_inSameLink() {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         List<ClickEventDTO> clicks = List.of(
-                click(LINK_A, VISITOR_X, DeviceType.PHONE,   "IN", "Bengaluru", now),
-                click(LINK_A, VISITOR_Y, DeviceType.DESKTOP, "US", "NYC",       now.plusSeconds(1))
-        );
-        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[]{1, 1});
+                click(LINK_A, VISITOR_X, DeviceType.PHONE, "IN", "Bengaluru", now),
+                click(LINK_A, VISITOR_Y, DeviceType.DESKTOP, "US", "NYC", now.plusSeconds(1)));
+        when(repository.batchInsertUniqueVisitorsGlobal(anyList())).thenReturn(new int[] {1, 1});
 
         writer.writeBatch(clicks);
 
@@ -165,10 +166,5 @@ class ClickAggregationWriterTest {
         CountIncrement inc = globalInc.getValue().get(LINK_A);
         assertThat(inc.totalClicks()).isEqualTo(2);
         assertThat(inc.newVisitors()).isEqualTo(2);
-    }
-
-    private static ClickEventDTO click(UUID linkId, UUID visitor, DeviceType device,
-                                       String country, String city, OffsetDateTime ts) {
-        return new ClickEventDTO(linkId, visitor, device, country, city, ts);
     }
 }

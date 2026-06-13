@@ -1,4 +1,3 @@
-
 # =======================================================================
 # DO NOT enable `reWriteBatchedInserts=true` on the Postgres JDBC URL.
 # Click ingestion relies on per-row return codes from JdbcTemplate.batchUpdate
@@ -50,4 +49,3 @@ server:
       remote-ip-header: X-Forwarded-For
       protocol-header: X-Forwarded-Proto
       internal-proxies: ${TRUSTED_PROXIES:10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|127\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|0:0:0:0:0:0:0:1}
-

@@ -10,5 +10,4 @@ public class AppProperties {
 
     @Value("${app.base-url}")
     private String baseUrl;
-
 }

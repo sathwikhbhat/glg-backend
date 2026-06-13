@@ -1,24 +1,5 @@
 package com.golinkgone.glgbackend.service;
 
-import com.golinkgone.glgbackend.entity.ClickStats;
-import com.golinkgone.glgbackend.entity.DashboardResponse;
-import com.golinkgone.glgbackend.entity.LinkSummary;
-import com.golinkgone.glgbackend.repository.DashboardReadRepository;
-import com.golinkgone.glgbackend.repository.DashboardReadRepository.LifetimeTotals;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
-
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
-import java.util.List;
-import java.util.UUID;
-import java.util.concurrent.Executor;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -27,14 +8,36 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.golinkgone.glgbackend.entity.ClickStats;
+import com.golinkgone.glgbackend.entity.DashboardResponse;
+import com.golinkgone.glgbackend.entity.LinkSummary;
+import com.golinkgone.glgbackend.repository.DashboardReadRepository;
+import com.golinkgone.glgbackend.repository.DashboardReadRepository.LifetimeTotals;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.Executor;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
+
 @ExtendWith(MockitoExtension.class)
 class DashboardServiceTest {
 
     private static final UUID LINK_ID = UUID.randomUUID();
-
-    @Mock DashboardReadRepository readRepository;
-
     private final Executor sameThreadExecutor = Runnable::run;
+
+    @Mock
+    DashboardReadRepository readRepository;
+
+    private static int anyInt() {
+        return org.mockito.ArgumentMatchers.anyInt();
+    }
 
     private DashboardService service() {
         DashboardService s = new DashboardService(readRepository, sameThreadExecutor);
@@ -55,12 +58,11 @@ class DashboardServiceTest {
 
         assertThat(resp.totalClicks()).isEqualTo(10);
         assertThat(resp.newVisitors()).isEqualTo(4);
-        assertThat(resp.totals()).singleElement()
-                .satisfies(c -> {
-                    assertThat(c.total()).isEqualTo(3);
-                    assertThat(c.newVisitors()).isEqualTo(1);
-                    assertThat(c.uniqueVisitors()).isEqualTo(2);
-                });
+        assertThat(resp.totals()).singleElement().satisfies(c -> {
+            assertThat(c.total()).isEqualTo(3);
+            assertThat(c.newVisitors()).isEqualTo(1);
+            assertThat(c.uniqueVisitors()).isEqualTo(2);
+        });
     }
 
     @Test
@@ -116,7 +118,7 @@ class DashboardServiceTest {
         when(readRepository.fetchLogTimeline(eq(LINK_ID), any(), any(), eq("hour"), eq("UTC")))
                 .thenReturn(List.of());
 
-        service().getTimeline(LINK_ID,"24h", "hour", "UTC");
+        service().getTimeline(LINK_ID, "24h", "hour", "UTC");
 
         verify(readRepository, never()).fetchLifetimeTotals(any());
         verify(readRepository, never()).fetchTopCountries(any(), anyInt());
@@ -171,9 +173,5 @@ class DashboardServiceTest {
         service().getDashboard(LINK_ID, "7d", null, null);
 
         verify(readRepository).fetchLogTimeline(eq(LINK_ID), any(), any(), eq("day"), eq("UTC"));
-    }
-
-    private static int anyInt() {
-        return org.mockito.ArgumentMatchers.anyInt();
     }
 }

@@ -2,12 +2,11 @@ package com.golinkgone.glgbackend.service;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Business metrics. Counters track per-process rates; gauges are refreshed
@@ -47,14 +46,14 @@ public class BusinessMetrics {
         redirectsServed.increment();
     }
 
-    @Scheduled(fixedDelayString = "${app.metrics.refresh-ms:60000}",
+    @Scheduled(
+            fixedDelayString = "${app.metrics.refresh-ms:60000}",
             initialDelayString = "${app.metrics.initial-delay-ms:10000}")
     public void refreshTotals() {
         try {
             totalLinks.set(queryLong("SELECT COUNT(*) FROM website_url"));
             totalRedirects.set(queryLong("SELECT COALESCE(SUM(total_clicks), 0) FROM link_stats_global"));
-            totalLinkOwners.set(queryLong(
-                    "SELECT COUNT(DISTINCT user_id) FROM website_url WHERE user_id IS NOT NULL"));
+            totalLinkOwners.set(queryLong("SELECT COUNT(DISTINCT user_id) FROM website_url WHERE user_id IS NOT NULL"));
         } catch (Exception ex) {
             log.warn("Failed to refresh business metric gauges: {}", ex.getMessage());
         }

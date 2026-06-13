@@ -1,13 +1,8 @@
 package com.golinkgone.glgbackend.repository;
 
 import com.golinkgone.glgbackend.service.ClickAggregationWriter.CountIncrement;
-import com.golinkgone.glgbackend.service.ClickAggregationWriter.UniqueVisitorRow;
 import com.golinkgone.glgbackend.service.ClickAggregationWriter.LogRow;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Repository;
-
+import com.golinkgone.glgbackend.service.ClickAggregationWriter.UniqueVisitorRow;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -16,6 +11,10 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Repository;
 
 /**
  * Warning for Sathwik O_o:- these batches rely on per-row return codes from
@@ -90,26 +89,36 @@ public class ClickAggregationRepository {
     public int[] batchInsertUniqueVisitorsGlobal(List<UniqueVisitorRow> rows) {
         if (rows.isEmpty()) return new int[0];
         return jdbc.batchUpdate(SQL_INSERT_UV_GLOBAL, new BatchPreparedStatementSetter() {
-            @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
                 UniqueVisitorRow r = rows.get(i);
                 ps.setObject(1, r.linkId(), Types.OTHER);
                 ps.setObject(2, r.visitorHash(), Types.OTHER);
             }
-            @Override public int getBatchSize() { return rows.size(); }
+
+            @Override
+            public int getBatchSize() {
+                return rows.size();
+            }
         });
     }
 
     public void batchInsertUniqueVisitorsLog(List<LogRow> rows) {
         if (rows.isEmpty()) return;
         jdbc.batchUpdate(SQL_INSERT_UV_LOG, new BatchPreparedStatementSetter() {
-            @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
                 LogRow r = rows.get(i);
                 ps.setObject(1, r.linkId(), Types.OTHER);
                 ps.setTimestamp(2, Timestamp.from(r.clickTime().toInstant()));
                 ps.setObject(3, r.visitorHash(), Types.OTHER);
                 ps.setBoolean(4, r.isNewVisitor());
             }
-            @Override public int getBatchSize() { return rows.size(); }
+
+            @Override
+            public int getBatchSize() {
+                return rows.size();
+            }
         });
     }
 
@@ -117,13 +126,18 @@ public class ClickAggregationRepository {
         if (increments.isEmpty()) return;
         List<Map.Entry<UUID, CountIncrement>> entries = List.copyOf(increments.entrySet());
         jdbc.batchUpdate(SQL_UPSERT_LINK_GLOBAL, new BatchPreparedStatementSetter() {
-            @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
                 Map.Entry<UUID, CountIncrement> e = entries.get(i);
                 ps.setObject(1, e.getKey(), Types.OTHER);
                 ps.setLong(2, e.getValue().totalClicks());
                 ps.setLong(3, e.getValue().newVisitors());
             }
-            @Override public int getBatchSize() { return entries.size(); }
+
+            @Override
+            public int getBatchSize() {
+                return entries.size();
+            }
         });
     }
 
@@ -131,14 +145,19 @@ public class ClickAggregationRepository {
         if (increments.isEmpty()) return;
         List<Map.Entry<MonthlyKey, CountIncrement>> entries = List.copyOf(increments.entrySet());
         jdbc.batchUpdate(SQL_UPSERT_LINK_MONTHLY, new BatchPreparedStatementSetter() {
-            @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
                 Map.Entry<MonthlyKey, CountIncrement> e = entries.get(i);
                 ps.setObject(1, e.getKey().linkId(), Types.OTHER);
                 ps.setObject(2, e.getKey().bucketMonth(), Types.DATE);
                 ps.setLong(3, e.getValue().totalClicks());
                 ps.setLong(4, e.getValue().newVisitors());
             }
-            @Override public int getBatchSize() { return entries.size(); }
+
+            @Override
+            public int getBatchSize() {
+                return entries.size();
+            }
         });
     }
 
@@ -146,14 +165,19 @@ public class ClickAggregationRepository {
         if (increments.isEmpty()) return;
         List<Map.Entry<DeviceKey, CountIncrement>> entries = List.copyOf(increments.entrySet());
         jdbc.batchUpdate(SQL_UPSERT_DEVICE, new BatchPreparedStatementSetter() {
-            @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
                 Map.Entry<DeviceKey, CountIncrement> e = entries.get(i);
                 ps.setObject(1, e.getKey().linkId(), Types.OTHER);
                 ps.setString(2, e.getKey().deviceType());
                 ps.setLong(3, e.getValue().totalClicks());
                 ps.setLong(4, e.getValue().newVisitors());
             }
-            @Override public int getBatchSize() { return entries.size(); }
+
+            @Override
+            public int getBatchSize() {
+                return entries.size();
+            }
         });
     }
 
@@ -161,7 +185,8 @@ public class ClickAggregationRepository {
         if (increments.isEmpty()) return;
         List<Map.Entry<LocationKey, CountIncrement>> entries = List.copyOf(increments.entrySet());
         jdbc.batchUpdate(SQL_UPSERT_LOCATION, new BatchPreparedStatementSetter() {
-            @Override public void setValues(PreparedStatement ps, int i) throws SQLException {
+            @Override
+            public void setValues(PreparedStatement ps, int i) throws SQLException {
                 Map.Entry<LocationKey, CountIncrement> e = entries.get(i);
                 ps.setObject(1, e.getKey().linkId(), Types.OTHER);
                 ps.setString(2, e.getKey().countryCode());
@@ -169,17 +194,21 @@ public class ClickAggregationRepository {
                 ps.setLong(4, e.getValue().totalClicks());
                 ps.setLong(5, e.getValue().newVisitors());
             }
-            @Override public int getBatchSize() { return entries.size(); }
+
+            @Override
+            public int getBatchSize() {
+                return entries.size();
+            }
         });
     }
 
     public int deleteUniqueVisitorsLogOlderThanDays(int days) {
-        return jdbc.update(
-                "DELETE FROM unique_visitors_log WHERE click_time < NOW() - make_interval(days => ?)",
-                days);
+        return jdbc.update("DELETE FROM unique_visitors_log WHERE click_time < NOW() - make_interval(days => ?)", days);
     }
 
     public record MonthlyKey(UUID linkId, LocalDate bucketMonth) {}
+
     public record DeviceKey(UUID linkId, String deviceType) {}
+
     public record LocationKey(UUID linkId, String countryCode, String cityName) {}
 }

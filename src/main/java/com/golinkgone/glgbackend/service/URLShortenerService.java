@@ -1,17 +1,21 @@
 package com.golinkgone.glgbackend.service;
 
-import com.golinkgone.glgbackend.entity.ResolvedLink;
-import org.springframework.cache.Cache;
-import com.google.zxing.WriterException;
 import com.golinkgone.glgbackend.config.AppProperties;
 import com.golinkgone.glgbackend.config.KeyStore;
 import com.golinkgone.glgbackend.entity.CreateResponse;
 import com.golinkgone.glgbackend.entity.LinkItemResponse;
+import com.golinkgone.glgbackend.entity.ResolvedLink;
 import com.golinkgone.glgbackend.entity.WebsiteUrl;
 import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
 import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
+import com.google.zxing.WriterException;
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.UUID;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -20,11 +24,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
-import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.UUID;
 
 @Service
 @Slf4j
@@ -42,10 +41,15 @@ public class URLShortenerService {
     private final CacheManager cacheManager;
     private final BusinessMetrics businessMetrics;
 
-    public URLShortenerService(AppProperties appProperties, WebsiteUrlRepository repository,
-                               ClickIngestionService clickIngestionService, UrlLookupService urlLookupService,
-                               KeyStore keyStore, QRCodeService qrService, CacheManager cacheManager,
-                               BusinessMetrics businessMetrics) {
+    public URLShortenerService(
+            AppProperties appProperties,
+            WebsiteUrlRepository repository,
+            ClickIngestionService clickIngestionService,
+            UrlLookupService urlLookupService,
+            KeyStore keyStore,
+            QRCodeService qrService,
+            CacheManager cacheManager,
+            BusinessMetrics businessMetrics) {
         this.appProperties = appProperties;
         this.repository = repository;
         this.clickIngestionService = clickIngestionService;
@@ -73,8 +77,11 @@ public class URLShortenerService {
                 break;
             } catch (DataIntegrityViolationException e) {
                 keyStore.removeKey(candidate);
-                log.debug("Short-key collision on '{}' (attempt {}/{}), retrying.",
-                        candidate, attempt, MAX_SHORTKEY_ATTEMPTS);
+                log.debug(
+                        "Short-key collision on '{}' (attempt {}/{}), retrying.",
+                        candidate,
+                        attempt,
+                        MAX_SHORTKEY_ATTEMPTS);
             } catch (Exception e) {
                 keyStore.removeKey(candidate);
                 log.error("Error while saving short-key: {}", e.getMessage());
@@ -123,8 +130,7 @@ public class URLShortenerService {
         }
     }
 
-    public String redirectUrl(String shortKey, String ip, String userAgent, String secChUaMobile,
-                              boolean countClick) {
+    public String redirectUrl(String shortKey, String ip, String userAgent, String secChUaMobile, boolean countClick) {
 
         if (!StringUtils.hasText(shortKey)) {
             throw new IllegalArgumentException("shortKey must not be blank");
@@ -143,7 +149,7 @@ public class URLShortenerService {
         return resolved.originalUrl();
     }
 
-    public Page<LinkItemResponse> getUserLinks(UUID userId, int page, int size){
+    public Page<LinkItemResponse> getUserLinks(UUID userId, int page, int size) {
         Pageable pageable = createPage(page, size);
         Page<LinkItemResponse> rawLinks = repository.findUserLinks(userId, pageable);
 
@@ -151,16 +157,16 @@ public class URLShortenerService {
                 link.shortKey(),
                 appProperties.getBaseUrl() + "/" + link.shortKey(),
                 link.originalUrl(),
-                link.createdAt()
-        ));
+                link.createdAt()));
     }
 
-    private Pageable createPage(int page, int size){
+    private Pageable createPage(int page, int size) {
         return (PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
     }
 
     public void deleteLink(String shortKey, UUID userId) {
-        UUID linkId = repository.findLinkIdByShortKeyAndUserId(shortKey, userId)
+        UUID linkId = repository
+                .findLinkIdByShortKeyAndUserId(shortKey, userId)
                 .orElseThrow(() -> new ShortKeyNotFoundException("Link not found or access denied"));
 
         repository.deleteByShortKeyAndUserId(shortKey, userId);
@@ -191,5 +197,4 @@ public class URLShortenerService {
             caffeine.asMap().keySet().removeIf(k -> k instanceof String s && s.startsWith(prefix));
         }
     }
-
 }

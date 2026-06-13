@@ -1,34 +1,42 @@
 package com.golinkgone.glgbackend.service;
 
-import com.golinkgone.glgbackend.config.KeyStore;
-import com.golinkgone.glgbackend.entity.LinkRef;
-import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.InOrder;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cache.Cache;
-import org.springframework.cache.CacheManager;
-
-import java.util.List;
-import java.util.UUID;
-
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.golinkgone.glgbackend.config.KeyStore;
+import com.golinkgone.glgbackend.entity.LinkRef;
+import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
+import java.util.List;
+import java.util.UUID;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+
 @ExtendWith(MockitoExtension.class)
 class UserServiceTest {
 
-    @Mock SupabaseAdminClient supabaseAdminClient;
-    @Mock WebsiteUrlRepository urlRepository;
-    @Mock KeyStore keyStore;
-    @Mock CacheManager cacheManager;
-    @InjectMocks UserService userService;
+    @Mock
+    SupabaseAdminClient supabaseAdminClient;
+
+    @Mock
+    WebsiteUrlRepository urlRepository;
+
+    @Mock
+    KeyStore keyStore;
+
+    @Mock
+    CacheManager cacheManager;
+
+    @InjectMocks
+    UserService userService;
 
     @Test
     void deleteAccount_selectsLinksBeforeSupabaseUserDelete() {
@@ -50,9 +58,8 @@ class UserServiceTest {
     @Test
     void deleteAccount_evictsPerKeyCachesForUserKeys() {
         UUID userId = UUID.randomUUID();
-        List<LinkRef> links = List.of(
-                new LinkRef("abc123", UUID.randomUUID()),
-                new LinkRef("def456", UUID.randomUUID()));
+        List<LinkRef> links =
+                List.of(new LinkRef("abc123", UUID.randomUUID()), new LinkRef("def456", UUID.randomUUID()));
         when(urlRepository.findAllLinkRefsByUserId(userId)).thenReturn(links);
         Cache urlCache = mock(Cache.class);
         Cache ownershipCache = mock(Cache.class);

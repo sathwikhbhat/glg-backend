@@ -5,8 +5,7 @@ import java.security.SecureRandom;
 public class ShortKeyGenerator {
     private static final SecureRandom random = new SecureRandom();
 
-    private ShortKeyGenerator() {
-    }
+    private ShortKeyGenerator() {}
 
     public static String generateShortKey() {
         StringBuilder shortKey = new StringBuilder(6);

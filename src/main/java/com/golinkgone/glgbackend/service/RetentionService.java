@@ -25,8 +25,11 @@ public class RetentionService {
         long start = System.currentTimeMillis();
         try {
             int deleted = repository.deleteUniqueVisitorsLogOlderThanDays(RETENTION_DAYS);
-            log.info("Retention sweep: deleted {} unique_visitors_log rows older than {} days in {} ms",
-                    deleted, RETENTION_DAYS, System.currentTimeMillis() - start);
+            log.info(
+                    "Retention sweep: deleted {} unique_visitors_log rows older than {} days in {} ms",
+                    deleted,
+                    RETENTION_DAYS,
+                    System.currentTimeMillis() - start);
         } catch (Exception ex) {
             log.error("Retention sweep failed", ex);
         }

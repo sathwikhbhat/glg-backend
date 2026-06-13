@@ -1,5 +1,6 @@
 package com.golinkgone.glgbackend.config;
 
+import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,8 +13,6 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 
-import java.util.List;
-
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -22,21 +21,15 @@ public class SecurityConfig {
     private List<String> allowedOrigins;
 
     @Bean
-    public SecurityFilterChain filterChain (HttpSecurity http) {
-        http
-                .headers(headers -> headers
-                        .contentTypeOptions(Customizer.withDefaults())
+    public SecurityFilterChain filterChain(HttpSecurity http) {
+        http.headers(headers -> headers.contentTypeOptions(Customizer.withDefaults())
                         .frameOptions(HeadersConfigurer.FrameOptionsConfig::deny)
                         // HSTS: enforce HTTPS for one year for both domains and all subdomains.
-                        .httpStrictTransportSecurity(hsts -> hsts
-                                .includeSubDomains(true)
-                                .preload(true)
-                                .maxAgeInSeconds(31_536_000))
+                        .httpStrictTransportSecurity(hsts ->
+                                hsts.includeSubDomains(true).preload(true).maxAgeInSeconds(31_536_000))
                         .referrerPolicy(rp -> rp.policy(
                                 org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter
-                                        .ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
-                )
-
+                                        .ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                 .cors(cors -> cors.configurationSource(request -> {
                     CorsConfiguration config = new CorsConfiguration();
                     config.setAllowedOrigins(allowedOrigins);
@@ -49,13 +42,16 @@ public class SecurityConfig {
                 // 2. Disable CSRF (safe to do for stateless REST APIs using JWTs)
                 .csrf(AbstractHttpConfigurer::disable)
                 // 3. Define endpoint access rules
-                .authorizeHttpRequests(authz -> authz
-                        .requestMatchers("/health", "/info", "/actuator/health").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/{shortKey:[A-Za-z0-9]{6}}").permitAll()
-                        .requestMatchers(HttpMethod.HEAD, "/{shortKey:[A-Za-z0-9]{6}}").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/create").permitAll()
-                        .anyRequest().authenticated()
-                )
+                .authorizeHttpRequests(authz -> authz.requestMatchers("/health", "/info", "/actuator/health")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/{shortKey:[A-Za-z0-9]{6}}")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.HEAD, "/{shortKey:[A-Za-z0-9]{6}}")
+                        .permitAll()
+                        .requestMatchers(HttpMethod.POST, "/create")
+                        .permitAll()
+                        .anyRequest()
+                        .authenticated())
                 // 4. Enable JWT verification
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> {}));
 

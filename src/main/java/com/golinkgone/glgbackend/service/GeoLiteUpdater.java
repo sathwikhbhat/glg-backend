@@ -1,15 +1,5 @@
 package com.golinkgone.glgbackend.service;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.Resource;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -20,6 +10,15 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 @Component
 @Slf4j
@@ -45,6 +44,14 @@ public class GeoLiteUpdater {
 
     public GeoLiteUpdater(GeoIPService geoIPService) {
         this.geoIPService = geoIPService;
+    }
+
+    private static void deleteQuietly(Path p) {
+        if (p == null) return;
+        try {
+            Files.deleteIfExists(p);
+        } catch (IOException ignored) {
+        }
     }
 
     @Scheduled(cron = "${maxmind.update-cron:0 0 3 * * SUN}", zone = "UTC")
@@ -78,10 +85,8 @@ public class GeoLiteUpdater {
     private Path download() throws IOException, InterruptedException {
         URI uri = URI.create(DOWNLOAD_URL.formatted(editionId, licenseKey));
         Path tmp = Files.createTempFile("geolite2-", ".tar.gz");
-        HttpRequest request = HttpRequest.newBuilder(uri)
-                .GET()
-                .timeout(Duration.ofMinutes(5))
-                .build();
+        HttpRequest request =
+                HttpRequest.newBuilder(uri).GET().timeout(Duration.ofMinutes(5)).build();
         HttpResponse<Path> response = http.send(request, HttpResponse.BodyHandlers.ofFile(tmp));
         if (response.statusCode() != 200) {
             Files.deleteIfExists(tmp);
@@ -92,8 +97,8 @@ public class GeoLiteUpdater {
 
     private Path extractMmdb(Path tarGz) throws IOException {
         try (InputStream fis = Files.newInputStream(tarGz);
-             GzipCompressorInputStream gis = new GzipCompressorInputStream(fis);
-             TarArchiveInputStream tar = new TarArchiveInputStream(gis)) {
+                GzipCompressorInputStream gis = new GzipCompressorInputStream(fis);
+                TarArchiveInputStream tar = new TarArchiveInputStream(gis)) {
 
             TarArchiveEntry entry;
             while ((entry = tar.getNextEntry()) != null) {
@@ -105,10 +110,5 @@ public class GeoLiteUpdater {
             }
         }
         throw new IOException(".mmdb entry not found in archive");
-    }
-
-    private static void deleteQuietly(Path p) {
-        if (p == null) return;
-        try { Files.deleteIfExists(p); } catch (IOException ignored) {}
     }
 }

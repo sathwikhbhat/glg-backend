@@ -4,10 +4,6 @@ import com.golinkgone.glgbackend.entity.CityStats;
 import com.golinkgone.glgbackend.entity.ClickStats;
 import com.golinkgone.glgbackend.entity.CountryStats;
 import com.golinkgone.glgbackend.entity.DeviceStats;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.stereotype.Repository;
-
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -17,13 +13,16 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
 
 /**
  * All reads for the dashboard. Each query targets one source-of-truth table:
- *   All-time summary → {@code link_stats_global}</li>
- *   All-time chart → {@code link_stats_monthly}</li>
- *   24h/7d/30d charts → {@code unique_visitors_log} (totals + new + UV in one scan)<
- *   Dimensions → {@code link_device_stats}, {@code link_location_stats}
+ * All-time summary → {@code link_stats_global}</li>
+ * All-time chart → {@code link_stats_monthly}</li>
+ * 24h/7d/30d charts → {@code unique_visitors_log} (totals + new + UV in one scan)<
+ * Dimensions → {@code link_device_stats}, {@code link_location_stats}
  */
 @Repository
 public class DashboardReadRepository {
@@ -36,14 +35,18 @@ public class DashboardReadRepository {
         this.jdbc = jdbc;
     }
 
+    private static Long readNullableLong(ResultSet rs, String column) throws SQLException {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
+    }
+
     public LifetimeTotals fetchLifetimeTotals(UUID linkId) {
         return jdbc.query(
                 "SELECT total_clicks, new_visitors FROM link_stats_global WHERE link_id = :linkId",
                 new MapSqlParameterSource("linkId", linkId),
                 rs -> rs.next()
                         ? new LifetimeTotals(rs.getLong("total_clicks"), rs.getLong("new_visitors"))
-                        : new LifetimeTotals(0L, 0L)
-        );
+                        : new LifetimeTotals(0L, 0L));
     }
 
     /**
@@ -51,11 +54,8 @@ public class DashboardReadRepository {
      * from {@code unique_visitors_log} so totals/new/unique align perfectly
      * with the user's local timezone — even for half-hour offsets (IST).
      */
-    public List<ClickStats> fetchLogTimeline(UUID linkId,
-                                             OffsetDateTime from,
-                                             OffsetDateTime to,
-                                             String granularity,
-                                             String tz) {
+    public List<ClickStats> fetchLogTimeline(
+            UUID linkId, OffsetDateTime from, OffsetDateTime to, String granularity, String tz) {
         if (!LOG_GRANULARITIES.contains(granularity)) {
             throw new IllegalArgumentException("Unsupported granularity: " + granularity);
         }
@@ -97,8 +97,8 @@ public class DashboardReadRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("linkId", linkId)
                 .addValue("from", Timestamp.from(from.toInstant()))
-                .addValue("to",   Timestamp.from(to.toInstant()))
-                .addValue("tz",   tz);
+                .addValue("to", Timestamp.from(to.toInstant()))
+                .addValue("tz", tz);
 
         return jdbc.query(sql, params, (rs, n) -> {
             Timestamp ts = rs.getTimestamp("bucket_local");
@@ -110,10 +110,9 @@ public class DashboardReadRepository {
         });
     }
 
-
-//     All-time monthly timeline. UTC bucket months, zero-filled from the
-//     month the link was created (via {@code website_url.created_at}) through
-//     the current calendar month.
+    //     All-time monthly timeline. UTC bucket months, zero-filled from the
+    //     month the link was created (via {@code website_url.created_at}) through
+    //     the current calendar month.
     public List<ClickStats> fetchMonthlyTimeline(UUID linkId) {
         String sql = """
                 WITH bounds AS (
@@ -136,20 +135,14 @@ public class DashboardReadRepository {
                       AND s.bucket_month = b.bucket_month
                 ORDER BY b.bucket_month
                 """;
-        return jdbc.query(sql, new MapSqlParameterSource("linkId", linkId),
-                (rs, n) -> {
-                    Date date = rs.getDate("bucket_month");
-                    return new ClickStats(
-                            date.toLocalDate().atStartOfDay().atOffset(ZoneOffset.UTC),
-                            rs.getLong("total_clicks"),
-                            rs.getLong("new_visitors"),
-                            readNullableLong(rs, "unique_visitors"));
-                });
-    }
-
-    private static Long readNullableLong(ResultSet rs, String column) throws SQLException {
-        long value = rs.getLong(column);
-        return rs.wasNull() ? null : value;
+        return jdbc.query(sql, new MapSqlParameterSource("linkId", linkId), (rs, n) -> {
+            Date date = rs.getDate("bucket_month");
+            return new ClickStats(
+                    date.toLocalDate().atStartOfDay().atOffset(ZoneOffset.UTC),
+                    rs.getLong("total_clicks"),
+                    rs.getLong("new_visitors"),
+                    readNullableLong(rs, "unique_visitors"));
+        });
     }
 
     public List<DeviceStats> fetchDeviceBreakdown(UUID linkId) {
@@ -168,47 +161,43 @@ public class DashboardReadRepository {
                 FROM d
                 ORDER BY total_clicks DESC
                 """;
-        return jdbc.query(sql, new MapSqlParameterSource("linkId", linkId),
+        return jdbc.query(
+                sql,
+                new MapSqlParameterSource("linkId", linkId),
                 (rs, n) -> new DeviceStats(
-                        rs.getString("device_type"),
-                        rs.getLong("total_clicks"),
-                        rs.getDouble("percentage")));
+                        rs.getString("device_type"), rs.getLong("total_clicks"), rs.getDouble("percentage")));
     }
 
-    /** Country roll-up derived from the unified location table. */
+    /**
+     * Country roll-up derived from the unified location table.
+     */
     public List<CountryStats> fetchTopCountries(UUID linkId, int limit) {
         return jdbc.query(
                 """
-                SELECT country_code,
-                       SUM(total_clicks) AS total_clicks,
-                       SUM(new_visitors) AS new_visitors
-                FROM link_location_stats
-                WHERE link_id = :linkId
-                GROUP BY country_code
-                ORDER BY total_clicks DESC
-                LIMIT :limit
-                """,
-                new MapSqlParameterSource()
-                        .addValue("linkId", linkId)
-                        .addValue("limit", limit),
+                        SELECT country_code,
+                               SUM(total_clicks) AS total_clicks,
+                               SUM(new_visitors) AS new_visitors
+                        FROM link_location_stats
+                        WHERE link_id = :linkId
+                        GROUP BY country_code
+                        ORDER BY total_clicks DESC
+                        LIMIT :limit
+                        """,
+                new MapSqlParameterSource().addValue("linkId", linkId).addValue("limit", limit),
                 (rs, n) -> new CountryStats(
-                        rs.getString("country_code"),
-                        rs.getLong("total_clicks"),
-                        rs.getLong("new_visitors")));
+                        rs.getString("country_code"), rs.getLong("total_clicks"), rs.getLong("new_visitors")));
     }
 
     public List<CityStats> fetchTopCities(UUID linkId, int limit) {
         return jdbc.query(
                 """
-                SELECT country_code, city_name, total_clicks, new_visitors
-                FROM link_location_stats
-                WHERE link_id = :linkId
-                ORDER BY total_clicks DESC
-                LIMIT :limit
-                """,
-                new MapSqlParameterSource()
-                        .addValue("linkId", linkId)
-                        .addValue("limit", limit),
+                        SELECT country_code, city_name, total_clicks, new_visitors
+                        FROM link_location_stats
+                        WHERE link_id = :linkId
+                        ORDER BY total_clicks DESC
+                        LIMIT :limit
+                        """,
+                new MapSqlParameterSource().addValue("linkId", linkId).addValue("limit", limit),
                 (rs, n) -> new CityStats(
                         rs.getString("city_name"),
                         rs.getString("country_code"),
