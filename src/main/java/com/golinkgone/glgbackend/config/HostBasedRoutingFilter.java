@@ -62,7 +62,9 @@ public class HostBasedRoutingFilter extends OncePerRequestFilter {
         }
 
         if (APP_HOSTS.contains(host)) {
-            if (isShortKey) {
+            // Only block short-key-looking paths for redirect methods (GET/HEAD).
+            // POST, DELETE, OPTIONS (CORS preflight), etc. must pass through.
+            if (isShortKey && isReadMethod(req.getMethod())) {
                 res.sendError(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
