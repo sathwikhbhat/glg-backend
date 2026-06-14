@@ -54,6 +54,12 @@ public class HostBasedRoutingFilter extends OncePerRequestFilter {
                 chain.doFilter(req, res);
                 return;
             }
+
+            if (isReadMethod(req.getMethod()) && (path.equals("/") || path.isEmpty())) {
+                res.sendRedirect("https://golinkgone.com");
+                return;
+            }
+
             // Everything else on tryglg.ink — POSTs, /my-links, /account, scans — 404.
             res.sendError(HttpServletResponse.SC_NOT_FOUND);
             return;
