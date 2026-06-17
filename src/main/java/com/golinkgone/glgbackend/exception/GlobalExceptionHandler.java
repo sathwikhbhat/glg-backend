@@ -1,6 +1,5 @@
 package com.golinkgone.glgbackend.exception;
 
-import com.google.zxing.WriterException;
 import java.time.Instant;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,13 +31,20 @@ public class GlobalExceptionHandler {
         HttpStatus status = HttpStatus.resolve(ex.getStatusCode().value());
         HttpStatus resolvedStatus = status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR;
         log.debug("Response status exception: {}", ex.getReason());
-        return buildError(resolvedStatus, resolvedStatus.getReasonPhrase());
+        String message = ex.getReason() != null ? ex.getReason() : resolvedStatus.getReasonPhrase();
+        return buildError(resolvedStatus, message);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ApiError> handleIllegalArgument(IllegalArgumentException ex) {
         log.debug("Illegal argument: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, "Invalid request Parameters");
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleUnreadable(org.springframework.http.converter.HttpMessageNotReadableException ex) {
+        log.debug("Unreadable request body: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, "Malformed request body");
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -48,12 +54,6 @@ public class GlobalExceptionHandler {
                 .findFirst()
                 .orElse("Validation failed");
         return buildError(HttpStatus.BAD_REQUEST, message);
-    }
-
-    @ExceptionHandler(WriterException.class)
-    public ResponseEntity<ApiError> handleQrException(WriterException ex) {
-        log.warn("QR code generation failed", ex);
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to generate QR code");
     }
 
     @ExceptionHandler(AccessDeniedException.class)

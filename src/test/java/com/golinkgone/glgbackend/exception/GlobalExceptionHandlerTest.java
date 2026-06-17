@@ -52,14 +52,6 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void writerException_returns500WithQrMessage() throws Exception {
-        mockMvc.perform(get("/test/writer-exception"))
-                .andExpect(status().isInternalServerError())
-                .andExpect(jsonPath("$.status").value(500))
-                .andExpect(jsonPath("$.message").value("Failed to generate QR code"));
-    }
-
-    @Test
     void unhandledException_returns500WithGenericMessage() throws Exception {
         mockMvc.perform(get("/test/unhandled"))
                 .andExpect(status().isInternalServerError())
@@ -90,11 +82,6 @@ class GlobalExceptionHandlerTest {
         @GetMapping("/response-status")
         String responseStatus() {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid URL");
-        }
-
-        @GetMapping("/writer-exception")
-        String writerException() throws com.google.zxing.WriterException {
-            throw new com.google.zxing.WriterException("QR generation failed");
         }
 
         @GetMapping("/unhandled")

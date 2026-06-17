@@ -9,8 +9,6 @@ import com.golinkgone.glgbackend.entity.WebsiteUrl;
 import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
 import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
-import com.google.zxing.WriterException;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.UUID;
@@ -36,7 +34,6 @@ public class URLShortenerService {
     private final WebsiteUrlRepository repository;
     private final ClickIngestionService clickIngestionService;
     private final UrlLookupService urlLookupService;
-    private final QRCodeService qrService;
     private final KeyStore keyStore;
     private final CacheManager cacheManager;
     private final BusinessMetrics businessMetrics;
@@ -47,7 +44,6 @@ public class URLShortenerService {
             ClickIngestionService clickIngestionService,
             UrlLookupService urlLookupService,
             KeyStore keyStore,
-            QRCodeService qrService,
             CacheManager cacheManager,
             BusinessMetrics businessMetrics) {
         this.appProperties = appProperties;
@@ -55,7 +51,6 @@ public class URLShortenerService {
         this.clickIngestionService = clickIngestionService;
         this.urlLookupService = urlLookupService;
         this.keyStore = keyStore;
-        this.qrService = qrService;
         this.cacheManager = cacheManager;
         this.businessMetrics = businessMetrics;
     }
@@ -96,15 +91,7 @@ public class URLShortenerService {
 
         businessMetrics.recordLinkCreated();
 
-        String shortUrl = appProperties.getBaseUrl() + "/" + shortKey;
-        byte[] qrCode = null;
-        try {
-            qrCode = qrService.generateQrImage(shortUrl, 200, 200);
-        } catch (IOException | WriterException e) {
-            log.error("Failed to generate QR code for short-key: {}", shortUrl);
-        }
-
-        return new CreateResponse(shortUrl, qrCode);
+        return new CreateResponse(appProperties.getBaseUrl() + "/" + shortKey);
     }
 
     private void validateUrl(String originalUrl) {

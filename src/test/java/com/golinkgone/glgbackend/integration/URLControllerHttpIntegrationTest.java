@@ -78,7 +78,7 @@ class URLControllerHttpIntegrationTest {
     @Test
     void httpFlow_createAndRedirect_usesRealServerStack() throws Exception {
         when(urlShortenerService.createShortLink(eq("https://example.com"), any()))
-                .thenReturn(new CreateResponse("http://localhost:" + port + "/abc123", new byte[] {1, 2, 3}));
+                .thenReturn(new CreateResponse("http://localhost:" + port + "/abc123"));
         when(urlShortenerService.redirectUrl(eq("abc123"), any(), any(), any(), eq(true)))
                 .thenReturn("https://example.com/target");
 

@@ -3,7 +3,6 @@ package com.golinkgone.glgbackend.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -20,8 +19,6 @@ import com.golinkgone.glgbackend.entity.WebsiteUrl;
 import com.golinkgone.glgbackend.exception.ShortKeyGenerationException;
 import com.golinkgone.glgbackend.exception.ShortKeyNotFoundException;
 import com.golinkgone.glgbackend.repository.WebsiteUrlRepository;
-import com.google.zxing.WriterException;
-import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,9 +45,6 @@ class URLShortenerServiceTest {
 
     @Mock
     UrlLookupService urlLookupService;
-
-    @Mock
-    QRCodeService qrService;
 
     @Mock
     KeyStore keyStore;
@@ -91,14 +85,11 @@ class URLShortenerServiceTest {
     }
 
     @Test
-    void createShortLink_succeedsOnFirstAttempt() throws IOException, WriterException {
-        when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenReturn(new byte[] {1, 2, 3});
-
+    void createShortLink_succeedsOnFirstAttempt() {
         CreateResponse response = service.createShortLink("https://example.com/page", UUID.randomUUID());
 
         assertThat(response.shortUrl()).startsWith("https://go.example/");
         assertThat(response.shortUrl()).hasSize("https://go.example/".length() + 6);
-        assertThat(response.qrCode()).containsExactly(1, 2, 3);
         verify(repository).saveAndFlush(any(WebsiteUrl.class));
         verify(keyStore).addKey(any());
     }
@@ -109,7 +100,6 @@ class URLShortenerServiceTest {
                 .doReturn(null)
                 .when(repository)
                 .saveAndFlush(any(WebsiteUrl.class));
-        when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenReturn(new byte[0]);
 
         CreateResponse response = service.createShortLink("https://example.com", null);
 
@@ -135,15 +125,6 @@ class URLShortenerServiceTest {
         assertThatThrownBy(() -> service.createShortLink("https://example.com", null))
                 .isInstanceOf(ShortKeyGenerationException.class);
         verify(repository, times(3)).saveAndFlush(any(WebsiteUrl.class));
-    }
-
-    @Test
-    void createShortLink_returnsNullQr_whenGenerationFails() throws Exception {
-        when(qrService.generateQrImage(any(), anyInt(), anyInt())).thenThrow(new IOException("boom"));
-
-        CreateResponse response = service.createShortLink("https://example.com", null);
-
-        assertThat(response.qrCode()).isNull();
     }
 
     @Test

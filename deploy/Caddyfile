@@ -1,0 +1,31 @@
+# Lives on the droplet at /opt/glg/Caddyfile
+#
+# Cloudflare (orange cloud) -> Caddy -> JVM. Cloudflare puts the true client
+# IP in CF-Connecting-IP; we copy that into X-Forwarded-For so Tomcat's
+# remoteip valve resolves the real client (Caddy reaches the JVM from a
+# 172.x docker-bridge address, which the default TRUSTED_PROXIES already
+# trusts -- no env change needed).
+#
+# Set Cloudflare SSL/TLS mode to "Full (strict)". The two domains are separate
+# Cloudflare zones, so each needs its own Origin Certificate in /opt/glg/certs.
+
+{
+	email shreyasn1105@gmail.com
+}
+
+(common) {
+	encode gzip zstd
+	reverse_proxy backend:8080 {
+		header_up X-Forwarded-For {http.request.header.CF-Connecting-IP}
+	}
+}
+
+api.golinkgone.com {
+	tls /etc/caddy/certs/golinkgone.pem /etc/caddy/certs/golinkgone-key.pem
+	import common
+}
+
+tryglg.ink {
+	tls /etc/caddy/certs/tryglg.pem /etc/caddy/certs/tryglg-key.pem
+	import common
+}
